@@ -1,0 +1,4 @@
+stack.yaml
+stack.yaml.*
+.stack-work/
+*.cabal
