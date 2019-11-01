@@ -1,4 +1,4 @@
-# Changelog for prosidy-ast
+# Changelog for prosidy-abstract-syntax
 
 ## Unreleased changes
 
