@@ -3,23 +3,37 @@
 {-# LANGUAGE NoImplicitPrelude, StandaloneDeriving #-}
 
 module Prosidy.AbstractSyntax (
-    {- * Document -} Document (..),
-    {- * Head -} Head (..),
-    {- * Body -} Body (..),
-    {- * Tags -} Tag (..), TagName (..),
-    {- * Block-level content -} Block (..),
-    {- * Paragraphs -} Paragraph0 (..), Paragraph1 (..),
-    {- * Tags at the block level -} TagBlock, TagBlockBody (..),
-    {- * Inline-level content -} Inline (..), InlineText1 (..),
-    {- * Tags at the inline level -} TagInline, TagInlineBody (..),
-    {- * Literals -} Literal (..),
-    {- * Attributes -} Attrs (..),
-    {- * Fields -} Field (..), Fields (..), FieldName (..), FieldValue (..),
-    {- * Flags -} Flag (..), Flags (..),
-    {- * Lists -} List0, List1 (..), {- $lists -}
-    {- * Maps -} Map0, {- $maps -}
-    {- * Sets -} Set0, {- $sets -}
-    {- * Text -} Text0, Text1 (..)
+    {- * Document structure -}
+    {- ** Document -} Document (..),
+    {- ** Head -} Head (..),
+    {- ** Body -} Body (..),
+
+    {- * Block-level content -}
+    {- ** Block -} Block (..),
+    {- ** Paragraph -} Paragraph0 (..), Paragraph1 (..),
+    {- ** Tag block -} TagBlock, TagBlockBody (..),
+
+    {- * Inline-level content -}
+    {- ** Inline -} Inline (..), InlineText1 (..),
+    {- ** Tag inline -} TagInline, TagInlineBody (..),
+
+    {- * Tags -}
+    {- ** Tag -} Tag (..),
+    {- ** Tag name -} TagName (..),
+
+    {- * Attributes -}
+    {- ** Attrs -} Attrs (..), Attribute (..),
+    {- ** Fields -} Field (..), Fields (..), FieldName (..), FieldValue (..),
+    {- ** Flags -} Flag (..), Flags (..),
+
+    {- * Literals -}
+    {- ** Literal -} Literal (..),
+
+    {- * General data structures -}
+    {- ** List -} List0, List1 (..), {- $list -}
+    {- ** Map -} Map0, {- $map -}
+    {- ** Set -} Set0, {- $set -}
+    {- ** Text -} Text0, Text1 (..) {- $text -}
   ) where
 
 import qualified Data.Map as Map
@@ -33,17 +47,17 @@ type List0 element = List.Seq element
 -- | A non-empty list.
 newtype List1 element = List1_Unsafe (List0 element) -- ^ The constructor is marked unsafe because it is the user's responsibility to ensure that this list is actually non-empty.
 
-{- $lists For more on lists, see "Data.Sequence". -}
+{- $list For more on lists, see "Data.Sequence". -}
 
 -- | A possibly-empty enumeration of mappings from key to value.
 type Map0 key value = Map.Map key value
 
-{- $maps For more on maps, see "Data.Map". -}
+{- $map For more on maps, see "Data.Map". -}
 
 -- | A possibly-empty collection of unique elements.
 type Set0 element = Set.Set element
 
-{- $sets For more on sets, see "Data.Set". -}
+{- $set For more on sets, see "Data.Set". -}
 
 -- | A possibly-empty list of characters.
 type Text0 = Text.Text
@@ -53,13 +67,13 @@ newtype Text1 = Text1_Unsafe Text0  -- ^ The constructor is marked unsafe becaus
 
 {- $text For more on text, see "Data.Text". -}
 
--- | The first line containing only three dashes (---) separates the 'Head' from the 'Body'.
+-- | The first line containing only three dashes (@---@) separates the 'Head' from the 'Body'.
 data Document = Document
     { docHead :: Head
     , docBody :: Body
     }
 
--- | The beginning of a prodisy document is the head. Each non-empty line of the head is a 'Field' or a 'Flag'.
+-- | The beginning of a Prosidy document is the head. Each non-empty line of the head is an 'Attribute'.
 newtype Head = Head Attrs
 
 -- | A Prosidy document body consists of a list of blocks. Blocks are (typically) separated by two consecutive line breaks.
@@ -81,7 +95,7 @@ type TagBlock = Tag TagBlockBody
 
 -- | A block-level tag may contain one of three things:
 data TagBlockBody
-    = TagBlock_Para  Paragraph0  -- ^ When a tag opened with @(#-)@ is followed by curly brackets {...}, the brackets enclose a possibly-empty paragraph comprising the tag body.
+    = TagBlock_Para  Paragraph0  -- ^ When a tag opened with @(#-)@ is followed by curly brackets @{@...@}@, the brackets enclose a possibly-empty paragraph comprising the tag body.
     | TagBlock_Doc   Body        -- ^ When a tag opened with @(#-)@ is not followed by curly brackets, it begins a nested document body and is later closed with (@#:@).
     | TagBlock_Lit   Literal     -- ^ A tag opened with @(#+)@ begins a literal.
 
@@ -94,7 +108,7 @@ data Inline
 -- | Text within a paragraph. This text can contain no line breaks (which are encoded separately as 'Inline_Break').
 newtype InlineText1 = InlineText1_Unsafe Text1 -- ^ The constructor is marked unsafe because it is the user's responsibility to ensure that this text actually contains no line breaks.
 
--- | A tag at the 'Inline' level. When a tag has curly brackets {...} then the brackets enclose a paragraph which comprises the tag body.
+-- | A tag at the 'Inline' level. When a tag has curly brackets @{@...@}@ then the brackets enclose a paragraph which comprises the tag body.
 type TagInline = Tag TagInlineBody
 
 newtype TagInlineBody = TagInlineBody Paragraph0
@@ -114,7 +128,7 @@ newtype Literal = Literal Text0
 --
 data Tag body = Tag
     { tagName   :: TagName
-    , tagAttrs  :: Attrs  -- ^ A block tag may optionally include square brackets [...] containing attributes.
+    , tagAttrs  :: Attrs  -- ^ A block tag may optionally include square brackets @[@...@]@ containing attributes.
     , tagBody   :: body
     }
 
@@ -135,7 +149,9 @@ newtype FieldName = FieldName Text1
 
 newtype FieldValue = FieldValue Text0
 
--- | In this example tag:
+-- | Both 'Document's and 'Tag's can have attributes.
+--
+-- In this example tag:
 --
 -- @
 -- #ingredient[bold, amount='25', unit=\'g']{flour}
@@ -148,3 +164,8 @@ data Attrs = Attrs
     { attrsFlags    :: Flags
     , attrsFields   :: Fields
     }
+
+-- | An attribute is either a 'Field' or a 'Flag'.
+data Attribute
+    = Attr_Field Field
+    | Attr_Flag Flag
