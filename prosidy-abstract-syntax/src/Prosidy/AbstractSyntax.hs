@@ -44,11 +44,11 @@ data Block
     = Block_Para    Paragraph1  -- ^ Text not wrapped in any special notation is a paragraph.
     | Block_Tag     TagBlock    -- ^ A line beginning in #+ or #- opens a block-level tag.
 
--- | A paragraph is a list of non-empty lines.
-newtype Paragraph0 = Paragraph0 (List0 Line1)
+-- | A paragraph is a list of inline segments.
+newtype Paragraph0 = Paragraph0 (List0 Inline)
 
 -- | A non-empty paragraph.
-newtype Paragraph1 = Paragraph1 (List1 Line1)
+newtype Paragraph1 = Paragraph1 (List1 Inline)
 
 -- | A tag at the 'Block' level.
 type TagBlock = Tag TagBlockBody
@@ -59,18 +59,13 @@ data TagBlockBody
     | TagBlock_Doc   Body        -- ^ When a tag opened with #- is not followed by curly brackets, it begins a nested document body and is later closed with (#:).
     | TagBlock_Lit   Literal     -- ^ A tag opened with #+ begins a literal.
 
--- | A possible-empty line.
-newtype Line0 = Line0 (List0 Inline)
-
--- | A non-empty line.
-newtype Line1 = Line1 (List1 Inline)
-
 -- | Two types of things can appear within the lines of a paragraph:
 data Inline
     = Inline_Text   InlineText1  -- ^ Plain text
     | Inline_Tag    TagInline    -- ^ Tags, which begin with (#).
+    | Inline_Break
 
--- | Text within a line (so it contain no line breaks).
+-- | Text within a paragraph. This text can contain no line breaks (which are encoded separately as 'Inline_Break').
 newtype InlineText1 = InlineText1_Unsafe Text1 -- ^ The constructor is marked unsafe because it is the user's responsibility to ensure that this text actually contains no line breaks.
 
 -- | A tag at the 'Inline' level. When a tag has curly brackets {...} then the brackets enclose a paragraph which comprises the tag body.
