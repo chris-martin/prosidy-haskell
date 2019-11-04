@@ -59,11 +59,11 @@ data TagBlockBody
     | TagBlock_Doc   Body        -- ^ When a tag opened with #- is not followed by curly brackets, it begins a nested document body and is later closed with (#:).
     | TagBlock_Lit   Literal     -- ^ A tag opened with #+ begins a literal.
 
--- | Two types of things can appear within the lines of a paragraph:
+-- | Three types of things can appear within a paragraph:
 data Inline
     = Inline_Text   InlineText1  -- ^ Plain text
-    | Inline_Tag    TagInline    -- ^ Tags, which begin with (#).
-    | Inline_Break
+    | Inline_Tag    TagInline    -- ^ A tag, which begins with (#)
+    | Inline_Break               -- ^ A line break
 
 -- | Text within a paragraph. This text can contain no line breaks (which are encoded separately as 'Inline_Break').
 newtype InlineText1 = InlineText1_Unsafe Text1 -- ^ The constructor is marked unsafe because it is the user's responsibility to ensure that this text actually contains no line breaks.
