@@ -29,14 +29,16 @@ type Text0 = Text.Text
 -- | A non-empty list of characters.
 newtype Text1 = Text1_Unsafe Text0  -- ^ The constructor is marked unsafe because it is the user's responsibility to ensure that this text is actually non-empty.
 
+-- | The first line containing only three dashes (---) separates the 'Head' from the 'Body'.
 data Document = Document
     { docHead :: Head
     , docBody :: Body
     }
 
+-- | The beginning of a prodisy document is the head. Each non-empty line of the head is a 'Field' or a 'Flag'.
 newtype Head = Head Attrs
 
--- | A prosidy document body consists of a list of blocks. Blocks are (typically) separated by two consecutive line breaks.
+-- | A Prosidy document body consists of a list of blocks. Blocks are (typically) separated by two consecutive line breaks.
 newtype Body = Body (List0 Block)
 
 -- | There are two types of blocks:
@@ -71,7 +73,7 @@ newtype InlineText1 = InlineText1_Unsafe Text1 -- ^ The constructor is marked un
 -- | A tag at the 'Inline' level. When a tag has curly brackets {...} then the brackets enclose a paragraph which comprises the tag body.
 type TagInline = Tag Paragraph0
 
--- | Text that matches verbatim with the corresponding prosidy source.
+-- | Text that matches verbatim with the corresponding Prosidy source.
 newtype Literal = Literal Text0
 
 data Tag body = Tag
