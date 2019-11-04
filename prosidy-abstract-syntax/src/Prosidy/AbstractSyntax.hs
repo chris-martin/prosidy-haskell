@@ -3,6 +3,7 @@
 {-# LANGUAGE NoImplicitPrelude, StandaloneDeriving #-}
 
 module Prosidy.AbstractSyntax (
+
     {- * Document structure -}
     {- ** Document -} Document (..),
     {- ** Head -} Head (..),
@@ -34,6 +35,7 @@ module Prosidy.AbstractSyntax (
     {- ** Map -} Map0, {- $map -}
     {- ** Set -} Set0, {- $set -}
     {- ** Text -} Text0, Text1 (..) {- $text -}
+
   ) where
 
 import qualified Data.Map as Map
