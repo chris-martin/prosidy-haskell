@@ -76,6 +76,14 @@ type TagInline = Tag Paragraph0
 -- | Text that matches verbatim with the corresponding Prosidy source.
 newtype Literal = Literal Text0
 
+-- | In this example tag:
+--
+--     #ingredient[bold, amount='25', unit='g']{flour}
+--
+-- * ingredient is the 'TagName'
+-- * [bold, amount='25', unit='g'] are the 'Attrs'
+-- * {flour} is the body
+--
 data Tag body = Tag
     { tagName   :: TagName
     , tagAttrs  :: Attrs  -- ^ A block tag may optionally include square brackets [...] containing attributes.
@@ -99,6 +107,13 @@ newtype FieldName = FieldName Text1
 
 newtype FieldValue = FieldValue Text0
 
+-- | In this example tag:
+--
+--     #ingredient[bold, amount='25', unit='g']{flour}
+--
+-- * bold is a 'Flag'
+-- * amount='25' and unit='g' are 'Field's
+--
 data Attrs = Attrs
     { attrsFlags    :: Flags
     , attrsFields   :: Fields
