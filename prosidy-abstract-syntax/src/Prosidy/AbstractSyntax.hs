@@ -29,8 +29,8 @@ type Text0 = Text.Text
 -- | A non-empty list of characters.
 newtype Text1 = Text1_Unsafe Text0  -- ^ The constructor is marked unsafe because it is the user's responsibility to ensure that this text is actually non-empty.
 
--- | A prosidy document consists of a list of blocks. Blocks are (typically) separated by two consecutive line breaks.
-newtype Document = Document (List0 Block)
+-- | A prosidy document body consists of a list of blocks. Blocks are (typically) separated by two consecutive line breaks.
+newtype Body = Body (List0 Block)
 
 -- | There are two types of blocks:
 data Block
@@ -49,7 +49,7 @@ type TagBlock = Tag TagBlockBody
 -- | A block-level tag may contain one of three things:
 data TagBlockBody
     = TagBlock_Para  Paragraph0  -- ^ When a tag opened with #- is followed by curly brackets {...}, the brackets enclose a possibly-empty paragraph comprising the tag body.
-    | TagBlock_Doc   Document    -- ^ When a tag opened with #- is not followed by curly brackets, it begins a nested document and is later closed with (#:).
+    | TagBlock_Doc   Body        -- ^ When a tag opened with #- is not followed by curly brackets, it begins a nested document body and is later closed with (#:).
     | TagBlock_Lit   Literal     -- ^ A tag opened with #+ begins a literal.
 
 -- | A possible-empty line.
