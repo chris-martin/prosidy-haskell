@@ -29,6 +29,13 @@ type Text0 = Text.Text
 -- | A non-empty list of characters.
 newtype Text1 = Text1_Unsafe Text0  -- ^ The constructor is marked unsafe because it is the user's responsibility to ensure that this text is actually non-empty.
 
+data Document = Document
+    { docHead :: Head
+    , docBody :: Body
+    }
+
+newtype Head = Head Attrs
+
 -- | A prosidy document body consists of a list of blocks. Blocks are (typically) separated by two consecutive line breaks.
 newtype Body = Body (List0 Block)
 
