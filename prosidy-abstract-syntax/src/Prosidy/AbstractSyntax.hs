@@ -1,173 +1,118 @@
 {-# OPTIONS_GHC -Wall #-}
 
-{-# LANGUAGE NoImplicitPrelude, StandaloneDeriving #-}
+{-# LANGUAGE DataKinds, KindSignatures, GADTs, NoImplicitPrelude, StandaloneDeriving #-}
 
-module Prosidy.AbstractSyntax (
+module Prosidy.AbstractSyntax where
 
-    {- * Document structure -}
-    {- ** Document -} Document (..),
-    {- ** Head -} Head (..),
-    {- ** Body -} Body (..),
-
-    {- * Block-level content -}
-    {- ** Block -} Block (..),
-    {- ** Paragraph -} Paragraph0 (..), Paragraph1 (..),
-    {- ** Tag block -} TagBlock, TagBlockBody (..),
-
-    {- * Inline-level content -}
-    {- ** Inline -} Inline (..), InlineText1 (..),
-    {- ** Tag inline -} TagInline, TagInlineBody (..),
-
-    {- * Tags -}
-    {- ** Tag -} Tag (..),
-    {- ** Tag name -} TagName (..),
-
-    {- * Attributes -}
-    {- ** Attrs -} Attrs (..), Attribute (..),
-    {- ** Fields -} Field (..), Fields (..), FieldName (..), FieldValue (..),
-    {- ** Flags -} Flag (..), Flags (..),
-
-    {- * Literals -}
-    {- ** Literal -} Literal (..),
-
-    {- * General data structures -}
-    {- ** List -} List0, List1 (..), {- $list -}
-    {- ** Map -} Map0, {- $map -}
-    {- ** Set -} Set0, {- $set -}
-    {- ** Text -} Text0, Text1 (..) {- $text -}
-
-  ) where
-
+import qualified Data.Char as Char
 import qualified Data.Map as Map
 import qualified Data.Sequence as List
 import qualified Data.Set as Set
 import qualified Data.Text as Text
 
--- | A possible-empty list.
-type List0 element = List.Seq element
+data Pro (size :: Size) (context :: Context) where
 
--- | A non-empty list.
-newtype List1 element = List1_Unsafe (List0 element) -- ^ The constructor is marked unsafe because it is the user's responsibility to ensure that this list is actually non-empty.
+    -- | A Prosidy document consists of a head and a body. The first line containing only three dashes (@---@) separates the head from the body.
+    Document :: Head -> Body -> Document
 
-{- $list For more on lists, see "Data.Sequence". -}
+    -- | Lists are important in the structure Prosidy (or of any markup language) because prose is largely linear; a document body is a list of paragraphs, and paragraphs are lists of words.
+    ProList :: List size (Pro 'One context) -> Pro size context
 
--- | A possibly-empty enumeration of mappings from key to value.
-type Map0 key value = Map.Map key value
+    -- | A block of text not wrapped in any special notation is a paragraph. A paragraph is comprised of a non-empty list of inline content.
+    Paragraph :: Inlines1 -> Block
 
-{- $map For more on maps, see "Data.Map". -}
+    -- | A block of the following form:
+    --
+    -- @
+    -- #-tagname[attrs]{inlines}
+    -- @
+    TagParagraph :: TagName -> Attrs -> Inlines -> Block
 
--- | A possibly-empty collection of unique elements.
-type Set0 element = Set.Set element
+    -- | A block of the following form:
+    --
+    -- @
+    -- #-tagname[attrs]:end@
+    -- blocks
+    -- #:end
+    -- @
+    TagBlocks :: TagName -> Attrs -> Blocks -> Block
 
-{- $set For more on sets, see "Data.Set". -}
+    -- | A block of the following form:
+    --
+    -- @
+    -- #+tagname[attrs]:end@
+    -- text
+    -- #:end
+    -- @
+    TagLiteral :: TagName -> Attrs -> Chars -> Block
 
--- | A possibly-empty list of characters.
-type Text0 = Text.Text
+    -- | A tag within a paragraph, of the following form:
+    --
+    -- @
+    -- #tagname[attrs]{inlines}
+    -- @
+    TagInline :: TagName -> Attrs -> Inlines -> Inline
 
--- | A non-empty list of characters.
-newtype Text1 = Text1_Unsafe Text0  -- ^ The constructor is marked unsafe because it is the user's responsibility to ensure that this text is actually non-empty.
+    -- | Plain text
+    Text :: Chars1 -> Inline
 
-{- $text For more on text, see "Data.Text". -}
+    -- | A line break within a paragraph. When a Prosidy document is rendered into another format, typically soft breaks are either replaced with a space character (or, in a CJK writing system, are simply removed).
+    SoftBreak :: Inline
 
--- | The first line containing only three dashes (@---@) separates the 'Head' from the 'Body'.
-data Document = Document
-    { docHead :: Head
-    , docBody :: Body
-    }
+data Size = One | AnyNumber | OneOrMore
 
--- | The beginning of a Prosidy document is the head. Each non-empty line of the head is an 'Attribute'.
-newtype Head = Head Attrs
+data Context = Root | Block | Inline
+
+-- | A Prosidy document consists of a head and a body. The first line containing only three dashes (@---@) separates the head from the body.
+type Document = Pro 'One 'Root
+
+-- | The beginning of a Prosidy document is the head. Each non-empty line of the head is an attribute.
+type Head = Attrs
 
 -- | A Prosidy document body consists of a list of blocks. Blocks are (typically) separated by two consecutive line breaks.
-newtype Body = Body (List0 Block)
+type Body = Blocks
 
--- | There are two types of blocks:
-data Block
-    = Block_Para    Paragraph1  -- ^ Text not wrapped in any special notation is a paragraph.
-    | Block_Tag     TagBlock    -- ^ A line beginning in @#+@ or @#-@ opens a block-level tag.
+-- | A block is either a 'Paragraph' (text not wrapped in any special notation) or a tag ('TagParagraph', 'TagBlocks', or 'TagLiteral') beginning with (@#+@) or (@#-@).
+type Block = Pro 'One 'Block
 
--- | A paragraph is a list of inline segments.
-newtype Paragraph0 = Paragraph0 (List0 Inline)
+type Blocks = Pro 'AnyNumber 'Block
+type Blocks1 = Pro 'OneOrMore 'Block
+type Inline = Pro 'One 'Inline
+type Inlines = Pro 'AnyNumber 'Inline
+type Inlines1 = Pro 'OneOrMore 'Inline
 
--- | A non-empty paragraph.
-newtype Paragraph1 = Paragraph1 (List1 Inline)
+newtype TagName = TagName Chars1
+data Attrs = Attrs (Set Flag) (Map FieldName FieldValue)
+newtype Flag = Flag Chars1
+newtype FieldName = FieldName Chars1
+newtype FieldValue = FieldValue Chars
 
--- | A tag at the 'Block' level.
-type TagBlock = Tag TagBlockBody
+-- | A finite sequence of elements, with the parameter @size@ constraining how many elements are in the sequence, and the parameter @element@ indicating the type of the elements. See "Data.Sequence".
+data List (size :: Size) (element :: *) where
 
--- | A block-level tag may contain one of three things:
-data TagBlockBody
-    = TagBlock_Para  Paragraph0  -- ^ When a tag opened with @(#-)@ is followed by curly brackets @{@...@}@, the brackets enclose a possibly-empty paragraph comprising the tag body.
-    | TagBlock_Doc   Body        -- ^ When a tag opened with @(#-)@ is not followed by curly brackets, it begins a nested document body and is later closed with (@#:@).
-    | TagBlock_Lit   Literal     -- ^ A tag opened with @(#+)@ begins a literal.
+    -- | A possibly-empty list.
+    List0 :: List.Seq element -> List 'AnyNumber element
 
--- | Three types of things can appear within a paragraph:
-data Inline
-    = Inline_Text   InlineText1  -- ^ Plain text
-    | Inline_Tag    TagInline    -- ^ A tag, which begins with (@#@)
-    | Inline_Break               -- ^ A line break
+    -- | A non-empty list. This constructor is designated "unsafe" because it is the user's responsibility to ensure that this list is actually non-empty.
+    List1_Unsafe :: List.Seq element -> List 'OneOrMore element
 
--- | Text within a paragraph. This text can contain no line breaks (which are encoded separately as 'Inline_Break').
-newtype InlineText1 = InlineText1_Unsafe Text1 -- ^ The constructor is marked unsafe because it is the user's responsibility to ensure that this text actually contains no line breaks.
+    -- | A possibly-empty packed list of characters. See "Data.Text".
+    Text0 :: Text.Text -> Chars
 
--- | A tag at the 'Inline' level. When a tag has curly brackets @{@...@}@ then the brackets enclose a paragraph which comprises the tag body.
-type TagInline = Tag TagInlineBody
+    -- | A non-empty packed list of characters. This constructor is designated "unsafe" because it is the user's responsibility to ensure that this list is actually non-empty.
+    Text1_Unsafe :: Text.Text -> Chars1
 
-newtype TagInlineBody = TagInlineBody Paragraph0
+-- | A single character.
+type Char = Char.Char
 
--- | Text that matches verbatim with the corresponding Prosidy source.
-newtype Literal = Literal Text0
+-- | A possibly-empty list of characters.
+type Chars = List 'AnyNumber Char
 
--- | In this example tag:
---
--- @
--- #ingredient[bold, amount='25', unit=\'g']{flour}
--- @
---
--- * @ingredient@ is the 'TagName'
--- * @[bold, amount='25', unit=\'g']@ are the 'Attrs'
--- * @{flour}@ is the body
---
-data Tag body = Tag
-    { tagName   :: TagName
-    , tagAttrs  :: Attrs  -- ^ A block tag may optionally include square brackets @[@...@]@ containing attributes.
-    , tagBody   :: body
-    }
+-- | A non-empty list of characters.
+type Chars1 = List 'OneOrMore Char
 
-newtype TagName = TagName Text1
+-- | A possibly-empty map from type @key@ to type @value@, sorted by key. See "Data.Map".
+type Map key value = Map.Map key value
 
-newtype Flag = Flag Text1
-
-newtype Flags = Flags (Set0 Flag)
-
-data Field = Field
-    { fieldName    :: FieldName
-    , fieldValue   :: FieldValue
-    }
-
-newtype Fields = Fields (Map0 FieldName FieldValue)
-
-newtype FieldName = FieldName Text1
-
-newtype FieldValue = FieldValue Text0
-
--- | Both 'Document's and 'Tag's can have attributes.
---
--- In this example tag:
---
--- @
--- #ingredient[bold, amount='25', unit=\'g']{flour}
--- @
---
--- * @bold@ is a 'Flag'
--- * @amount='25' and unit=\'g'@ are 'Field's
---
-data Attrs = Attrs
-    { attrsFlags    :: Flags
-    , attrsFields   :: Fields
-    }
-
--- | An attribute is either a 'Field' or a 'Flag'.
-data Attribute
-    = Attr_Field Field
-    | Attr_Flag Flag
+-- | A possibly-empty sorted collection of distinct @element@s. See "Data.Set".
+type Set element = Set.Set element
