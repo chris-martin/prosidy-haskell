@@ -31,7 +31,7 @@ data Pro (size :: Size) (context :: Context) where
     -- | A block of the following form:
     --
     -- @
-    -- #-tagname[attrs]:end@
+    -- #-tagname[attrs]:end
     -- blocks
     -- #:end
     -- @
@@ -40,7 +40,7 @@ data Pro (size :: Size) (context :: Context) where
     -- | A block of the following form:
     --
     -- @
-    -- #+tagname[attrs]:end@
+    -- #+tagname[attrs]:end
     -- text
     -- #:end
     -- @
