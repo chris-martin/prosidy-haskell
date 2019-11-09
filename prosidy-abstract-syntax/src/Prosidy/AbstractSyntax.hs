@@ -4,89 +4,121 @@
 
 module Prosidy.AbstractSyntax where
 
-data Pro (size :: Size) (context :: Context) (string :: *) (list :: * -> *) (map :: * -> * -> *) =
+data Pro (size :: Size) (context :: Context)
+         (string :: *) (list :: * -> *) (map :: * -> * -> *) where
 
-    (size ~ 'One, context ~ 'RootCtx) =>
-      Document
-        -- ^ A Prosidy document consists of a head and a body. The first line
-        -- containing only three dashes (@---@) separates the head from the body.
-        (Attrs string map)
+    -- | A Prosidy document consists of a head and a body. The first line
+    -- containing only three dashes (@---@) separates the head from the body.
+    Document ::
+        Attrs string map
           -- ^ The beginning of a Prosidy document is the head.
           -- Each non-empty line of the head is an attribute.
-        (Blocks string list map)
+      ->
+        Pro 'Many 'BlockCtx string list map
           -- ^ A Prosidy document body consists of a list of blocks.
           -- Blocks are (typically) separated by two consecutive line breaks.
+      ->
+        Pro 'One 'RootCtx string list map
 
-    | (size ~ 'Many) => ProList (list (Pro 'One context string list map))
-        -- ^ Lists are important in the structure Prosidy (or of any markup language)
-        -- because prose is largely linear; a document body is a list of paragraphs,
-        -- and paragraphs are lists of words.
+    -- | Lists are important in the structure Prosidy (or of any markup language)
+    -- because prose is largely linear; a document body is a list of paragraphs,
+    -- and paragraphs are lists of words.
+    List ::
+        list (Pro 'One context string list map)
+      ->
+        Pro 'Many context string list map
 
-    | (size ~ 'One, context ~ 'BlockCtx) => Paragraph (Inlines string list map)
-        -- ^ A block of text not wrapped in any special notation is a paragraph.
-        -- A paragraph is comprised of a non-empty list of inline content.
+    -- | A block of text not wrapped in any special notation is a paragraph.
+    -- A paragraph is comprised of a non-empty list of inline content.
+    Paragraph ::
+        Pro 'Many 'InlineCtx string list map
+      ->
+        Pro 'One 'BlockCtx string list map
 
-    | (size ~ 'One, context ~ 'BlockCtx) =>
-    TagParagraph (TagName string) (Attrs string map) (Inlines string list map)
-        -- ^ A block of the following form:
-        --
-        -- @
-        -- #-tagname[attrs]{inlines}
-        -- @
+    -- | A block of the following form:
+    --
+    -- @
+    -- #-tagname[attrs]{inlines}
+    -- @
+    TagParagraph ::
+        (forall list' map'. Pro 'One 'TagNameCtx string list' map')
+      ->
+        Attrs string map
+      ->
+        Pro 'Many 'InlineCtx string list map
+      ->
+        Pro 'One 'BlockCtx string list map
 
-    | (size ~ 'One, context ~ 'BlockCtx) =>
-    TagBlocks (TagName string) (Attrs string map) (Blocks string list map)
-        -- ^ A block of the following form:
-        --
-        -- @
-        -- #-tagname[attrs]:end
-        -- blocks
-        -- #:end
-        -- @
+    -- | A block of the following form:
+    --
+    -- @
+    -- #-tagname[attrs]:end
+    -- blocks
+    -- #:end
+    -- @
+    TagBlocks ::
+        (forall list' map'. Pro 'One 'TagNameCtx string list' map')
+      ->
+        Attrs string map
+      ->
+        Pro 'Many 'BlockCtx string list map
+      ->
+        Pro 'One 'BlockCtx string list map
 
-    | (size ~ 'One, context ~ 'BlockCtx) =>
-    TagLiteral (TagName string) (Attrs string map) string
-        -- ^ A block of the following form:
-        --
-        -- @
-        -- #+tagname[attrs]:end
-        -- text
-        -- #:end
-        -- @
+    -- | A block of the following form:
+    --
+    -- @
+    -- #+tagname[attrs]:end
+    -- text
+    -- #:end
+    -- @
+    TagLiteral ::
+        (forall list' map'. Pro 'One 'TagNameCtx string list' map')
+      ->
+        Attrs string map
+      ->
+        string
+      ->
+        Pro 'One 'BlockCtx string list map
 
-    | (size ~ 'One, context ~ 'InlineCtx) =>
-    TagInline (TagName string) (Attrs string map) (Inlines string list map)
-        -- ^ A tag within a paragraph, of the following form:
-        --
-        -- @
-        -- #tagname[attrs]{inlines}
-        -- @
+    -- | A tag within a paragraph, of the following form:
+    --
+    -- @
+    -- #tagname[attrs]{inlines}
+    -- @
+    TagInline ::
+        (forall list' map'. Pro 'One 'TagNameCtx string list' map')
+      ->
+        Attrs string map
+      ->
+        Pro 'Many 'InlineCtx string list map
+      ->
+        Pro 'One 'InlineCtx string list map
 
-    | (size ~ 'One, context ~ 'InlineCtx) => String string -- ^ Plain text
+    -- | Plain text
+    String ::
+        string
+      ->
+        Pro 'One 'InlineCtx string list map
 
-    | (size ~ 'One, context ~ 'InlineCtx) => SoftBreak
-        -- ^ A line break within a paragraph. When a Prosidy document is rendered
-        -- into another format, typically soft breaks are either replaced with
-        -- a space character (or, in a CJK writing system, are simply removed).
+    -- | A line break within a paragraph. When a Prosidy document is rendered
+    -- into another format, typically soft breaks are either replaced with
+    -- a space character (or, in a CJK writing system, are simply removed).
+    SoftBreak ::
+        Pro 'One 'InlineCtx string list map
 
-    | (size ~ 'One, context ~ 'TagNameCtx) => TagName string
+    TagName ::
+        string
+      ->
+        Pro 'One 'TagNameCtx string list map
 
 data Size = One | Many
 
-data Context = RootCtx | BlockCtx | InlineCtx | TagNameCtx
-
--- | A Prosidy document consists of a head and a body. The first line containing only three dashes (@---@) separates the head from the body.
-type Document = Pro 'One 'RootCtx
-
--- | A block is either a 'Paragraph' (text not wrapped in any special notation) or a tag ('TagParagraph', 'TagBlocks', or 'TagLiteral') beginning with (@#+@) or (@#-@).
-type Block = Pro 'One 'BlockCtx
-
-type Blocks = Pro 'Many 'BlockCtx
-
-type Inline = Pro 'One 'InlineCtx
-
-type Inlines = Pro 'Many 'InlineCtx
-
-type TagName string = forall list map. Pro 'One 'TagNameCtx string list map
+data Context =
+    RootCtx
+  | BlockCtx
+      -- ^ A block is either a 'Paragraph' (text not wrapped in any special notation) or a tag ('TagParagraph', 'TagBlocks', or 'TagLiteral') beginning with (@#+@) or (@#-@).
+  | InlineCtx
+  | TagNameCtx
 
 data Attrs string map = Attrs (map string ()) (map string string)
