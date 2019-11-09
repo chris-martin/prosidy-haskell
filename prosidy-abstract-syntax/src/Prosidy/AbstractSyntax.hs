@@ -57,12 +57,14 @@ data Pro (size :: Size) (context :: Context) string where
     -- | A line break within a paragraph. When a Prosidy document is rendered into another format, typically soft breaks are either replaced with a space character (or, in a CJK writing system, are simply removed).
     SoftBreak :: Inline string
 
+    TagName :: string -> TagName string
+
 data Size = One | Many
 
-data Context = Root | Block | Inline
+data Context = RootCtx | BlockCtx | InlineCtx | TagNameCtx
 
 -- | A Prosidy document consists of a head and a body. The first line containing only three dashes (@---@) separates the head from the body.
-type Document = Pro 'One 'Root
+type Document = Pro 'One 'RootCtx
 
 -- | The beginning of a Prosidy document is the head. Each non-empty line of the head is an attribute.
 type Head = Attrs
@@ -71,13 +73,16 @@ type Head = Attrs
 type Body = Blocks
 
 -- | A block is either a 'Paragraph' (text not wrapped in any special notation) or a tag ('TagParagraph', 'TagBlocks', or 'TagLiteral') beginning with (@#+@) or (@#-@).
-type Block = Pro 'One 'Block
+type Block = Pro 'One 'BlockCtx
 
-type Blocks = Pro 'Many 'Block
-type Inline = Pro 'One 'Inline
-type Inlines = Pro 'Many 'Inline
+type Blocks = Pro 'Many 'BlockCtx
 
-newtype TagName string = TagName string
+type Inline = Pro 'One 'InlineCtx
+
+type Inlines = Pro 'Many 'InlineCtx
+
+type TagName = Pro 'One 'TagNameCtx
+
 data Attrs string = Attrs (Set string) (Map string string)
 
 -- | A finite sequence of elements, with the parameter @size@ constraining how many elements are in the sequence, and the parameter @element@ indicating the type of the elements.
