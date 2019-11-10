@@ -14,9 +14,7 @@ module Prosidy.AbstractSyntax
   , Context (..), Size (..), Level (..)
 
   -- * Other types: string, list, map
-  -- $string
-  -- $list
-  -- $map
+  -- $otherTypes
 
   -- * Specialization with base types
   , BasePro, AssociationList (..)
@@ -214,7 +212,9 @@ data Attrs
       ->
         Attrs string map
 
-{- $string
+{- $otherTypes
+
+=== String
 
 The representation of text within a 'Pro' value is controlled by the @string@ type parameter.
 
@@ -224,9 +224,7 @@ Some reasonable options for this parameter:
   - 'Data.Text.Text' from the @text@ package
   - 'Data.Text.Lazy.Text' from the @text@ package
 
--}
-
-{- $list
+=== List
 
 The representation of sequences within a 'Pro' value is controlled by the @list@ type parameter.
 
@@ -236,9 +234,7 @@ Some reasonable options for this parameter:
   - 'Data.Sequence.Seq' from the @containers@ package
   - 'Data.Vector.Vector' from the @vector@ package
 
--}
-
-{- $map
+=== Map
 
 The representation of key-value mappings within a 'Pro' value is controlled by the @map@ type parameter.
 
