@@ -7,9 +7,6 @@ module Prosidy.AbstractSyntax
   -- * Prosidy content
     Pro (..)
 
-  -- * Tags
-  , Tag (..)
-
   -- * Attributes
   , Attrs (..)
 
@@ -77,8 +74,14 @@ data Pro
           -- is a paragraph.
 
     TagParagraph ::
-        Tag string list map ('Context 'Many 'Inline)
-          -- ^ A tag containing a list of inlines.
+        string
+          -- ^ Tag name
+      ->
+        attrs string map
+          -- ^ Tag attributes
+      ->
+        Pro string list map ('Context 'Many 'Inline)
+          -- ^ Tag body: a list of inlines
       ->
         Pro string list map ('Context 'One 'Block)
           -- ^ A block of the following form:
@@ -88,8 +91,14 @@ data Pro
           -- @
 
     TagBlock ::
-        Tag string list map ('Context 'Many 'Block)
-          -- ^ A tag containing a list of blocks.
+        string
+          -- ^ Tag name
+      ->
+        attrs string map
+          -- ^ Tag attributes
+      ->
+        Pro string list map ('Context 'Many 'Block)
+          -- ^ Tag body: a list of blocks
       ->
         Pro string list map ('Context 'One 'Block)
           -- ^ A block of the following form:
@@ -101,7 +110,14 @@ data Pro
           -- @
 
     TagLiteral ::
-        Tag string list map ('Context 'One 'Literal)
+        string
+          -- ^ Tag name
+      ->
+        attrs string map
+          -- ^ Tag attributes
+      ->
+        string
+          -- ^ Tag body: a literal string
       ->
         Pro string list map ('Context 'One 'Block)
           -- ^ A block of the following form:
@@ -113,8 +129,14 @@ data Pro
           -- @
 
     TagInline ::
-        Tag string list map ('Context 'Many 'Inline)
-          -- ^ A tag containing a list of inline elements.
+        string
+          -- ^ Tag name
+      ->
+        attrs string map
+          -- ^ Tag attributes
+      ->
+        Pro string list map ('Context 'Many 'Inline)
+          -- ^ Tag body: a list of inline elements
       ->
         Pro string list map ('Context 'One 'Inline)
           -- ^ A tag within a paragraph, of the following form:
@@ -136,13 +158,6 @@ data Pro
           -- rendered into another format, typically soft breaks are either
           -- replaced with a space character (or, in a CJK writing system,
           -- are simply removed).
-
-    LiteralString ::
-        string
-          -- ^ Plain text that appears unadulterated in the Prosidy source
-          -- within a 'TagLiteral' block.
-      ->
-        Pro string list map ('Context 'One 'Literal)
 
 -- | The @outerLevel@ of a 'Pro' indicates what kind of elements it may be
 -- nested within.
@@ -171,8 +186,6 @@ data Level
     -- has an inline level, permitting a tree of inlines.
     Inline :: Level
 
-    Literal :: Level
-
 -- | When a Prosidy element that has a body (other Prosidy content within the
 -- element), that body consists of a list of elements. The @outerSize@ of a 'Pro'
 -- indicates whether the 'Pro' represents a list of elements or a single
@@ -188,23 +201,6 @@ data Size
 
     -- | Only the 'List' constructor has an @outerSize@ of 'Many'.
     Many :: Size
-
-data Tag
-    (string :: Type) (list :: Type -> Type) (map :: Type -> Type -> Type)
-    (inner :: Context)
-  where
-
-    Tag ::
-        string
-          -- ^ Tag name
-      ->
-        attrs string map
-          -- ^ Tag attributes
-      ->
-        Pro string list map inner
-          -- ^ Tag body
-      ->
-        Tag string list map inner
 
 data Attrs
     (string :: Type) (map :: Type -> Type -> Type)
