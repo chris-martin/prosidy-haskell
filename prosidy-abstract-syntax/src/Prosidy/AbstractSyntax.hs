@@ -60,7 +60,7 @@ data Pro
           -- #-tagname[attrs]{inlines}
           -- @
 
-    TagBlocks ::
+    TagBlock ::
         Tag string
           -- ^ Tag name
       ->
@@ -93,7 +93,7 @@ data Pro
           -- ^ A block of the following form:
           --
           -- @
-          -- #+tagname[attrs]:end
+          -- #=tagname[attrs]:end
           -- text
           -- #:end
           -- @
@@ -129,15 +129,46 @@ data Pro
           -- replaced with a space character (or, in a CJK writing system,
           -- are simply removed).
 
-data Size = One | Many
+-- | The 'Context' of a 'Pro' indicates what kind of elements it may be
+-- nested within.
+--
+-- The DataKinds GHC extension lifts 'Context' to a kind and its constructors
+-- 'Root', 'Block' and 'Inline' to types of the 'Context' kind.
+data Context where
 
-data Context =
-    Root
-  | Block
-      -- ^ A block is either a 'Paragraph' (text not wrapped in any special
-      -- notation) or a tag ('TagParagraph', 'TagBlocks', or 'TagLiteral')
-      -- beginning with (@#+@) or (@#-@).
-  | Inline
+    -- | The top-level context containing everything else.
+    -- Only a 'Document' has this context.
+    Root :: Context
+
+    -- | The document body is a block context. A block is either a 'Paragraph'
+    -- (text not wrapped in any special notation) or a tag ('TagParagraph',
+    -- 'TagBlock', or 'TagLiteral') beginning with (@#-@) or (@#=@).
+    --
+    -- Blocks have a recursive structure; the body of a 'TagBlock' element is
+    -- a block context, permitting a tree of blocks.
+    Block :: Context
+
+    -- | The body of a 'Paragraph' or 'TagParagraph' block is an inline context.
+    -- The types of inlines are 'String', 'SoftBreak', and 'TagInline'.
+    --
+    -- Inlines have a recursive structure; the body of a 'TagInline' element
+    -- is an inline context, permitting a tree of inlines.
+    Inline :: Context
+
+-- | When a Prosidy element that has a body (other Prosidy content within the
+-- element, that body consists of a list of elements. The 'Size' of a 'Pro'
+-- indicates whether the 'Pro' represents a list of elements or a single
+-- element within such a list.
+--
+-- The DataKinds GHC extension lifts 'Size' to a kind and its constructors
+-- 'One' and 'Many' to types of the 'Size' kind.
+data Size where
+
+    -- | Indicates that a 'Pro' represents a single inline or block element.
+    One :: Size
+
+    -- | Only the 'List' constructor has a size of 'Many'.
+    Many :: Size
 
 newtype Tag string = Tag string
 
