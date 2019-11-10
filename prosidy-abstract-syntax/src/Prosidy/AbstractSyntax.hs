@@ -36,11 +36,13 @@ module Prosidy.AbstractSyntax
 import Data.Char (Char)
 import Data.Kind (Type)
 
+data ContentType = ContentType Size Context
+
 -- | 'Pro' is the type of Prosidy content.
 
 data Pro
   (string :: Type) (list :: Type -> Type) (map :: Type -> Type -> Type)
-  (outerSize :: Size) (outerContext :: Context)
+  (outer :: ContentType)
     where
 
     Document ::
@@ -48,40 +50,40 @@ data Pro
           -- ^ The beginning of a Prosidy document is the head.
           -- Each non-empty line of the head is an attribute.
       ->
-        Pro string list map 'Many 'Block
+        Pro string list map ('ContentType 'Many 'Block)
           -- ^ A Prosidy document body consists of a list of blocks.
           -- Blocks are (typically) separated by two consecutive line
           -- breaks.
       ->
-        Pro string list map 'One 'Root
+        Pro string list map ('ContentType 'One 'Root)
           -- ^ A Prosidy document consists of a head and a body. The
           -- first line containing only three dashes (@---@) separates
           -- the head from the body.
 
     List ::
-        list (Pro string list map 'One outerContext)
+        list (Pro string list map ('ContentType 'One outerContext))
           -- ^ e.g. a list of blocks or a list of inlines
       ->
-        Pro string list map 'Many outerContext
+        Pro string list map ('ContentType 'Many outerContext)
           -- ^ Lists are important in the structure Prosidy (or of
           -- any markup language) because prose is largely linear;
           -- a document body is a list of paragraphs, and paragraphs
           -- are lists of words.
 
     Paragraph ::
-        Pro string list map 'Many 'Inline
+        Pro string list map ('ContentType 'Many 'Inline)
           -- ^ A list of inline elements (plain text, inline tags,
           -- soft breaks).
       ->
-        Pro string list map 'One 'Block
+        Pro string list map ('ContentType 'One 'Block)
           -- ^ A block of text not wrapped in any special notation
           -- is a paragraph.
 
     TagParagraph ::
-        Tag string list map 'Many 'Inline
+        Tag string list map ('ContentType 'Many 'Inline)
           -- ^ A tag containing a list of inlines.
       ->
-        Pro string list map 'One 'Block
+        Pro string list map ('ContentType 'One 'Block)
           -- ^ A block of the following form:
           --
           -- @
@@ -89,10 +91,10 @@ data Pro
           -- @
 
     TagBlock ::
-        Tag string list map 'Many 'Block
+        Tag string list map ('ContentType 'Many 'Block)
           -- ^ A tag containing a list of blocks.
       ->
-        Pro string list map 'One 'Block
+        Pro string list map ('ContentType 'One 'Block)
           -- ^ A block of the following form:
           --
           -- @
@@ -102,9 +104,9 @@ data Pro
           -- @
 
     TagLiteral ::
-        Tag string list map 'One 'Literal
+        Tag string list map ('ContentType 'One 'Literal)
       ->
-        Pro string list map 'One 'Block
+        Pro string list map ('ContentType 'One 'Block)
           -- ^ A block of the following form:
           --
           -- @
@@ -114,10 +116,10 @@ data Pro
           -- @
 
     TagInline ::
-        Tag string list map 'Many 'Inline
+        Tag string list map ('ContentType 'Many 'Inline)
           -- ^ A tag containing a list of inline elements.
       ->
-        Pro string list map 'One 'Inline
+        Pro string list map ('ContentType 'One 'Inline)
           -- ^ A tag within a paragraph, of the following form:
           --
           -- @
@@ -128,11 +130,11 @@ data Pro
         string
           -- ^ Plain text
       ->
-        Pro string list map 'One 'Inline
+        Pro string list map ('ContentType 'One 'Inline)
           -- ^ A plain text inline element
 
     SoftBreak ::
-        Pro string list map 'One 'Inline
+        Pro string list map ('ContentType 'One 'Inline)
           -- ^ A line break within a paragraph. When a Prosidy document is
           -- rendered into another format, typically soft breaks are either
           -- replaced with a space character (or, in a CJK writing system,
@@ -143,7 +145,7 @@ data Pro
           -- ^ Plain text that appears unadulterated in the Prosidy source
           -- within a 'TagLiteral' block.
       ->
-        Pro string list map 'One 'Literal
+        Pro string list map ('ContentType 'One 'Literal)
 
 -- | The @outerContext@ of a 'Pro' indicates what kind of elements it may be
 -- nested within.
@@ -192,7 +194,7 @@ data Size
 
 data Tag
     (string :: Type) (list :: Type -> Type) (map :: Type -> Type -> Type)
-    (innerSize :: Size) (innerContext :: Context)
+    (inner :: ContentType)
   where
 
     Tag ::
@@ -202,10 +204,10 @@ data Tag
         attrs string map
           -- ^ Tag attributes
       ->
-        Pro string list map innerSize innerContext
+        Pro string list map inner
           -- ^ Tag body
       ->
-        Tag string list map innerSize innerContext
+        Tag string list map inner
 
 data Attrs
     (string :: Type) (map :: Type -> Type -> Type)
@@ -255,14 +257,12 @@ Some reasonable options for this parameter:
 -}
 
 type BasePro
-  (outerSize :: Size)
-  (context :: Context) =
+  (outer :: ContentType) =
     Pro
       ([] Char)             -- string
       []                    -- list
       (AssociationList [])  -- map
-      outerSize
-      context
+      outer
 
 newtype AssociationList list a b =
     AssociationList (list (a, b))
