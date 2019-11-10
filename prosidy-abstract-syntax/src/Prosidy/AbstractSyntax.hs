@@ -26,13 +26,11 @@ module Prosidy.AbstractSyntax
 import Data.Char (Char)
 import Data.Kind (Type)
 
-data Context = Context Size Level
-
 -- | 'Pro' is the type of Prosidy content.
 
 data Pro
   (string :: Type) (list :: Type -> Type) (map :: Type -> Type -> Type)
-  (outer :: Context)
+  (context :: Context)
     where
 
     Document ::
@@ -51,10 +49,10 @@ data Pro
           -- the head from the body.
 
     List ::
-        list (Pro string list map ('Context 'One outerLevel))
+        list (Pro string list map ('Context 'One level))
           -- ^ e.g. a list of blocks or a list of inlines
       ->
-        Pro string list map ('Context 'Many outerLevel)
+        Pro string list map ('Context 'Many level)
           -- ^ Lists are important in the structure Prosidy (or of
           -- any markup language) because prose is largely linear;
           -- a document body is a list of paragraphs, and paragraphs
@@ -155,7 +153,13 @@ data Pro
           -- replaced with a space character (or, in a CJK writing system,
           -- are simply removed).
 
--- | The @outerLevel@ of a 'Pro' indicates what kind of elements it may be
+-- |The context of a 'Pro' indicates what kind of place it is allowed to
+-- appear within the syntax tree.
+--
+-- The DataKinds GHC extension lifts 'Context' to a kind.
+data Context = Context Size Level
+
+-- | The level of a 'Pro' indicates what kind of elements it may be
 -- nested within.
 --
 -- The DataKinds GHC extension lifts 'Level' to a kind and its constructors
@@ -164,7 +168,7 @@ data Level
   where
 
     -- | The top level containins everything else.
-    -- Only a 'Document' has 'Root' as its outer level.
+    -- Only a 'Document' appears at the 'Root' level.
     Root :: Level
 
     -- | The document body is at the block level. A block is either a 'Paragraph'
@@ -183,7 +187,7 @@ data Level
     Inline :: Level
 
 -- | When a Prosidy element that has a body (other Prosidy content within the
--- element), that body consists of a list of elements. The @outerSize@ of a 'Pro'
+-- element), that body consists of a list of elements. The size of a 'Pro'
 -- indicates whether the 'Pro' represents a list of elements or a single
 -- element within such a list.
 --
@@ -195,7 +199,7 @@ data Size
     -- | Indicates that a 'Pro' represents a single inline or block element.
     One :: Size
 
-    -- | Only the 'List' constructor has an @outerSize@ of 'Many'.
+    -- | Only the 'List' constructor has an size of 'Many'.
     Many :: Size
 
 data Attrs
@@ -246,12 +250,12 @@ Some reasonable options for this parameter:
 -}
 
 type BasePro
-  (outer :: Context) =
+  (context :: Context) =
     Pro
       ([] Char)             -- string
       []                    -- list
       (AssociationList [])  -- map
-      outer
+      context
 
 newtype AssociationList list a b =
     AssociationList (list (a, b))
