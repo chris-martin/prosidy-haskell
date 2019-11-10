@@ -1,8 +1,41 @@
 {-# OPTIONS_GHC -Wall #-}
 
-{-# LANGUAGE DataKinds, KindSignatures, GADTs, NoImplicitPrelude #-}
+{-# LANGUAGE DataKinds, KindSignatures, GADTs, NoImplicitPrelude, ExplicitForAll #-}
 
-module Prosidy.AbstractSyntax where
+module Prosidy.AbstractSyntax
+  (
+  -- * Prosidy content
+    Pro (..)
+
+  -- * Tags
+  , Tag (..)
+
+  -- * Attributes
+  , Attrs (..)
+
+  -- * Sizes
+  , Size (..)
+
+  -- * Contexts
+  , Context (..)
+
+  -- * Strings
+  -- $string
+
+  -- * Lists
+  -- $list
+
+  -- * Maps
+  -- $map
+
+  -- * Specialization with base types
+  , BasePro, AssociationList (..)
+
+  ) where
+
+import qualified Data.Char
+
+-- | 'Pro' is the type of Prosidy content.
 
 data Pro
   (string :: *) (list :: * -> *) (map :: * -> * -> *)
@@ -173,3 +206,51 @@ data Size where
 newtype Tag string = Tag string
 
 data Attrs string map = Attrs (map string ()) (map string string)
+
+{- $string
+
+The representation of text within a 'Pro' value is controlled by the @string@ type parameter.
+
+Some reasonable options for this parameter:
+
+  - 'Data.String.String' from the @base@ package
+  - 'Data.Text.Text' from the @text@ package
+  - 'Data.Text.Lazy.Text' from the @text@ package
+
+-}
+
+{- $list
+
+The representation of sequences within a 'Pro' value is controlled by the @list@ type parameter.
+
+Some reasonable options for this parameter:
+
+  - The built-in @[]@ type
+  - 'Data.Sequence.Seq' from the @containers@ package
+  - 'Data.Vector.Vector' from the @vector@ package
+
+-}
+
+{- $map
+
+The representation of key-value mappings within a 'Pro' value is controlled by the @map@ type parameter.
+
+Some reasonable options for this parameter:
+
+  - 'Data.Map.Map' from the @containers@ package
+  - 'Data.HashMap.HashMap' from the @unordered-containers@ package
+
+-}
+
+type BasePro
+  (size :: Size)
+  (context :: Context) =
+    Pro
+      ([] Data.Char.Char)   -- string
+      []                    -- list
+      (AssociationList [])  -- map
+      size
+      context
+
+newtype AssociationList list a b =
+    AssociationList (list (a, b))
