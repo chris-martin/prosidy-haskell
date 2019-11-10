@@ -5,7 +5,7 @@
 module Prosidy.AbstractSyntax
   (
   -- * Prosidy content
-    Pro (..)
+    Prosidy (..)
 
   -- * Attributes: flags and fields
   , Attrs (..)
@@ -17,16 +17,16 @@ module Prosidy.AbstractSyntax
   -- $otherTypes
 
   -- * Specialization with base types
-  , BasePro, AssociationList (..)
+  , BaseProsidy, AssociationList (..)
 
   ) where
 
 import Data.Char (Char)
 import Data.Kind (Type)
 
--- | 'Pro' is the type of Prosidy content.
+-- | 'Prosidy' is the type of Prosidy content.
 
-data Pro
+data Prosidy
   (string :: Type) (list :: Type -> Type) (map :: Type -> Type -> Type)
   (context :: Context)
     where
@@ -36,32 +36,32 @@ data Pro
           -- ^ The beginning of a Prosidy document is the head.
           -- Each non-empty line of the head is an attribute.
       ->
-        Pro string list map ('Context 'Many 'Block)
+        Prosidy string list map ('Context 'Many 'Block)
           -- ^ A Prosidy document body consists of a list of blocks.
           -- Blocks are (typically) separated by two consecutive line
           -- breaks.
       ->
-        Pro string list map ('Context 'One 'Root)
+        Prosidy string list map ('Context 'One 'Root)
           -- ^ A Prosidy document consists of a head and a body. The
           -- first line containing only three dashes (@---@) separates
           -- the head from the body.
 
     List ::
-        list (Pro string list map ('Context 'One level))
+        list (Prosidy string list map ('Context 'One level))
           -- ^ e.g. a list of blocks or a list of inlines
       ->
-        Pro string list map ('Context 'Many level)
+        Prosidy string list map ('Context 'Many level)
           -- ^ Lists are important in the structure Prosidy (or of
           -- any markup language) because prose is largely linear;
           -- a document body is a list of paragraphs, and paragraphs
           -- are lists of words.
 
     Paragraph ::
-        Pro string list map ('Context 'Many 'Inline)
+        Prosidy string list map ('Context 'Many 'Inline)
           -- ^ A list of inline elements (plain text, inline tags,
           -- soft breaks).
       ->
-        Pro string list map ('Context 'One 'Block)
+        Prosidy string list map ('Context 'One 'Block)
           -- ^ A block of text not wrapped in any special notation
           -- is a paragraph.
 
@@ -72,10 +72,10 @@ data Pro
         attrs string map
           -- ^ Tag attributes
       ->
-        Pro string list map ('Context 'Many 'Inline)
+        Prosidy string list map ('Context 'Many 'Inline)
           -- ^ Tag body: a list of inlines
       ->
-        Pro string list map ('Context 'One 'Block)
+        Prosidy string list map ('Context 'One 'Block)
           -- ^ A block of the following form:
           --
           -- @
@@ -89,10 +89,10 @@ data Pro
         attrs string map
           -- ^ Tag attributes
       ->
-        Pro string list map ('Context 'Many 'Block)
+        Prosidy string list map ('Context 'Many 'Block)
           -- ^ Tag body: a list of blocks
       ->
-        Pro string list map ('Context 'One 'Block)
+        Prosidy string list map ('Context 'One 'Block)
           -- ^ A block of the following form:
           --
           -- @
@@ -111,7 +111,7 @@ data Pro
         string
           -- ^ Tag body: a literal string
       ->
-        Pro string list map ('Context 'One 'Block)
+        Prosidy string list map ('Context 'One 'Block)
           -- ^ A block of the following form:
           --
           -- @
@@ -127,10 +127,10 @@ data Pro
         attrs string map
           -- ^ Tag attributes
       ->
-        Pro string list map ('Context 'Many 'Inline)
+        Prosidy string list map ('Context 'Many 'Inline)
           -- ^ Tag body: a list of inline elements
       ->
-        Pro string list map ('Context 'One 'Inline)
+        Prosidy string list map ('Context 'One 'Inline)
           -- ^ A tag within a paragraph, of the following form:
           --
           -- @
@@ -141,23 +141,23 @@ data Pro
         string
           -- ^ Plain text
       ->
-        Pro string list map ('Context 'One 'Inline)
+        Prosidy string list map ('Context 'One 'Inline)
           -- ^ A plain text inline element
 
     SoftBreak ::
-        Pro string list map ('Context 'One 'Inline)
+        Prosidy string list map ('Context 'One 'Inline)
           -- ^ A line break within a paragraph. When a Prosidy document is
           -- rendered into another format, typically soft breaks are either
           -- replaced with a space character (or, in a CJK writing system,
           -- are simply removed).
 
--- |The context of a 'Pro' indicates what kind of place it is allowed to
+-- | The context of a 'Prosidy' indicates what kind of place it is allowed to
 -- appear within the syntax tree.
 --
 -- The DataKinds GHC extension lifts 'Context' to a kind.
 data Context = Context Size Level
 
--- | The level of a 'Pro' indicates what kind of elements it may be
+-- | The level of a 'Prosidy' indicates what kind of elements it may be
 -- nested within.
 --
 -- The DataKinds GHC extension lifts 'Level' to a kind and its constructors
@@ -185,8 +185,8 @@ data Level
     Inline :: Level
 
 -- | When a Prosidy element that has a body (other Prosidy content within the
--- element), that body consists of a list of elements. The size of a 'Pro'
--- indicates whether the 'Pro' represents a list of elements or a single
+-- element), that body consists of a list of elements. The size of a 'Prosidy'
+-- indicates whether the 'Prosidy' represents a list of elements or a single
 -- element within such a list.
 --
 -- The DataKinds GHC extension lifts 'Size' to a kind and its constructors
@@ -194,7 +194,7 @@ data Level
 data Size
   where
 
-    -- | Indicates that a 'Pro' represents a single inline or block element.
+    -- | Indicates that a 'Prosidy' represents a single inline or block element.
     One :: Size
 
     -- | Only the 'List' constructor has an size of 'Many'.
@@ -216,7 +216,7 @@ data Attrs
 
 === String
 
-The representation of text within a 'Pro' value is controlled by the @string@ type parameter.
+The representation of text within a 'Prosidy' value is controlled by the @string@ type parameter.
 
 Some reasonable options for this parameter:
 
@@ -226,7 +226,7 @@ Some reasonable options for this parameter:
 
 === List
 
-The representation of sequences within a 'Pro' value is controlled by the @list@ type parameter.
+The representation of sequences within a 'Prosidy' value is controlled by the @list@ type parameter.
 
 Some reasonable options for this parameter:
 
@@ -236,7 +236,7 @@ Some reasonable options for this parameter:
 
 === Map
 
-The representation of key-value mappings within a 'Pro' value is controlled by the @map@ type parameter.
+The representation of key-value mappings within a 'Prosidy' value is controlled by the @map@ type parameter.
 
 Some reasonable options for this parameter:
 
@@ -245,9 +245,9 @@ Some reasonable options for this parameter:
 
 -}
 
-type BasePro
+type BaseProsidy
   (context :: Context) =
-    Pro
+    Prosidy
       ([] Char)             -- string
       []                    -- list
       (AssociationList [])  -- map
