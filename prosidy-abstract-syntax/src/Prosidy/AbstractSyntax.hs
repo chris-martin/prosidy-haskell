@@ -13,11 +13,8 @@ module Prosidy.AbstractSyntax
   -- * Attributes
   , Attrs (..)
 
-  -- * Sizes
-  , Size (..)
-
   -- * Contexts
-  , Context (..)
+  , Context (..), Size (..), Level (..)
 
   -- * Strings
   -- $string
@@ -36,13 +33,13 @@ module Prosidy.AbstractSyntax
 import Data.Char (Char)
 import Data.Kind (Type)
 
-data ContentType = ContentType Size Context
+data Context = Context Size Level
 
 -- | 'Pro' is the type of Prosidy content.
 
 data Pro
   (string :: Type) (list :: Type -> Type) (map :: Type -> Type -> Type)
-  (outer :: ContentType)
+  (outer :: Context)
     where
 
     Document ::
@@ -50,40 +47,40 @@ data Pro
           -- ^ The beginning of a Prosidy document is the head.
           -- Each non-empty line of the head is an attribute.
       ->
-        Pro string list map ('ContentType 'Many 'Block)
+        Pro string list map ('Context 'Many 'Block)
           -- ^ A Prosidy document body consists of a list of blocks.
           -- Blocks are (typically) separated by two consecutive line
           -- breaks.
       ->
-        Pro string list map ('ContentType 'One 'Root)
+        Pro string list map ('Context 'One 'Root)
           -- ^ A Prosidy document consists of a head and a body. The
           -- first line containing only three dashes (@---@) separates
           -- the head from the body.
 
     List ::
-        list (Pro string list map ('ContentType 'One outerContext))
+        list (Pro string list map ('Context 'One outerLevel))
           -- ^ e.g. a list of blocks or a list of inlines
       ->
-        Pro string list map ('ContentType 'Many outerContext)
+        Pro string list map ('Context 'Many outerLevel)
           -- ^ Lists are important in the structure Prosidy (or of
           -- any markup language) because prose is largely linear;
           -- a document body is a list of paragraphs, and paragraphs
           -- are lists of words.
 
     Paragraph ::
-        Pro string list map ('ContentType 'Many 'Inline)
+        Pro string list map ('Context 'Many 'Inline)
           -- ^ A list of inline elements (plain text, inline tags,
           -- soft breaks).
       ->
-        Pro string list map ('ContentType 'One 'Block)
+        Pro string list map ('Context 'One 'Block)
           -- ^ A block of text not wrapped in any special notation
           -- is a paragraph.
 
     TagParagraph ::
-        Tag string list map ('ContentType 'Many 'Inline)
+        Tag string list map ('Context 'Many 'Inline)
           -- ^ A tag containing a list of inlines.
       ->
-        Pro string list map ('ContentType 'One 'Block)
+        Pro string list map ('Context 'One 'Block)
           -- ^ A block of the following form:
           --
           -- @
@@ -91,10 +88,10 @@ data Pro
           -- @
 
     TagBlock ::
-        Tag string list map ('ContentType 'Many 'Block)
+        Tag string list map ('Context 'Many 'Block)
           -- ^ A tag containing a list of blocks.
       ->
-        Pro string list map ('ContentType 'One 'Block)
+        Pro string list map ('Context 'One 'Block)
           -- ^ A block of the following form:
           --
           -- @
@@ -104,9 +101,9 @@ data Pro
           -- @
 
     TagLiteral ::
-        Tag string list map ('ContentType 'One 'Literal)
+        Tag string list map ('Context 'One 'Literal)
       ->
-        Pro string list map ('ContentType 'One 'Block)
+        Pro string list map ('Context 'One 'Block)
           -- ^ A block of the following form:
           --
           -- @
@@ -116,10 +113,10 @@ data Pro
           -- @
 
     TagInline ::
-        Tag string list map ('ContentType 'Many 'Inline)
+        Tag string list map ('Context 'Many 'Inline)
           -- ^ A tag containing a list of inline elements.
       ->
-        Pro string list map ('ContentType 'One 'Inline)
+        Pro string list map ('Context 'One 'Inline)
           -- ^ A tag within a paragraph, of the following form:
           --
           -- @
@@ -130,11 +127,11 @@ data Pro
         string
           -- ^ Plain text
       ->
-        Pro string list map ('ContentType 'One 'Inline)
+        Pro string list map ('Context 'One 'Inline)
           -- ^ A plain text inline element
 
     SoftBreak ::
-        Pro string list map ('ContentType 'One 'Inline)
+        Pro string list map ('Context 'One 'Inline)
           -- ^ A line break within a paragraph. When a Prosidy document is
           -- rendered into another format, typically soft breaks are either
           -- replaced with a space character (or, in a CJK writing system,
@@ -145,36 +142,36 @@ data Pro
           -- ^ Plain text that appears unadulterated in the Prosidy source
           -- within a 'TagLiteral' block.
       ->
-        Pro string list map ('ContentType 'One 'Literal)
+        Pro string list map ('Context 'One 'Literal)
 
--- | The @outerContext@ of a 'Pro' indicates what kind of elements it may be
+-- | The @outerLevel@ of a 'Pro' indicates what kind of elements it may be
 -- nested within.
 --
--- The DataKinds GHC extension lifts 'Context' to a kind and its constructors
--- 'Root', 'Block' and 'Inline' to types of the 'Context' kind.
-data Context
+-- The DataKinds GHC extension lifts 'Level' to a kind and its constructors
+-- 'Root', 'Block' and 'Inline' to types of the 'Level' kind.
+data Level
   where
 
-    -- | The top-level context containing everything else.
-    -- Only a 'Document' has 'Root' as its @outerContext@.
-    Root :: Context
+    -- | The top level containins everything else.
+    -- Only a 'Document' has 'Root' as its outer level.
+    Root :: Level
 
-    -- | The document body is a block context. A block is either a 'Paragraph'
+    -- | The document body is at the block level. A block is either a 'Paragraph'
     -- (text not wrapped in any special notation) or a tag ('TagParagraph',
     -- 'TagBlock', or 'TagLiteral') beginning with (@#-@) or (@#=@).
     --
     -- Blocks have a recursive structure; the body of a 'TagBlock' element is
-    -- a block context, permitting a tree of blocks.
-    Block :: Context
+    -- block-level, permitting a tree of blocks.
+    Block :: Level
 
-    -- | The body of a 'Paragraph' or 'TagParagraph' block is an inline context.
+    -- | The body of a 'Paragraph' or 'TagParagraph' block is at the inline level.
     -- The types of inlines are 'String', 'SoftBreak', and 'TagInline'.
     --
     -- Inlines have a recursive structure; the body of a 'TagInline' element
-    -- is an inline context, permitting a tree of inlines.
-    Inline :: Context
+    -- has an inline level, permitting a tree of inlines.
+    Inline :: Level
 
-    Literal :: Context
+    Literal :: Level
 
 -- | When a Prosidy element that has a body (other Prosidy content within the
 -- element), that body consists of a list of elements. The @outerSize@ of a 'Pro'
@@ -194,7 +191,7 @@ data Size
 
 data Tag
     (string :: Type) (list :: Type -> Type) (map :: Type -> Type -> Type)
-    (inner :: ContentType)
+    (inner :: Context)
   where
 
     Tag ::
@@ -257,7 +254,7 @@ Some reasonable options for this parameter:
 -}
 
 type BasePro
-  (outer :: ContentType) =
+  (outer :: Context) =
     Pro
       ([] Char)             -- string
       []                    -- list
