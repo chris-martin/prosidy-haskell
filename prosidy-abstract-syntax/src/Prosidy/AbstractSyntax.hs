@@ -64,7 +64,7 @@ data Prosidy
         string
           -- ^ Tag name
       ->
-        attrs string map
+        Attrs string map
           -- ^ Tag attributes
       ->
         Prosidy string list map ('Context 'Many 'Inline)
@@ -81,7 +81,7 @@ data Prosidy
         string
           -- ^ Tag name
       ->
-        attrs string map
+        Attrs string map
           -- ^ Tag attributes
       ->
         Prosidy string list map ('Context 'Many 'Block)
@@ -100,7 +100,7 @@ data Prosidy
         string
           -- ^ Tag name
       ->
-        attrs string map
+        Attrs string map
           -- ^ Tag attributes
       ->
         string
@@ -119,7 +119,7 @@ data Prosidy
         string
           -- ^ Tag name
       ->
-        attrs string map
+        Attrs string map
           -- ^ Tag attributes
       ->
         Prosidy string list map ('Context 'Many 'Inline)
