@@ -16,16 +16,11 @@ module Prosidy.AbstractSyntax
   -- * Other types: string, list, map
   -- $otherTypes
 
-  -- * Specialization with base types
-  , BaseProsidy, AssociationList (..)
-
   ) where
 
-import Data.Char (Char)
 import Data.Kind (Type)
 
 -- | 'Prosidy' is the type of Prosidy content.
-
 data Prosidy
   (string :: Type) (list :: Type -> Type) (map :: Type -> Type -> Type)
   (context :: Context)
@@ -244,14 +239,3 @@ Some reasonable options for this parameter:
   - 'Data.HashMap.HashMap' from the @unordered-containers@ package
 
 -}
-
-type BaseProsidy
-  (context :: Context) =
-    Prosidy
-      ([] Char)             -- string
-      []                    -- list
-      (AssociationList [])  -- map
-      context
-
-newtype AssociationList list a b =
-    AssociationList (list (a, b))
