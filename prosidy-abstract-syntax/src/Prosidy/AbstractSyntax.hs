@@ -40,7 +40,7 @@ import Data.Kind (Type)
 
 data Pro
   (string :: Type) (list :: Type -> Type) (map :: Type -> Type -> Type)
-  (size :: Size) (context :: Context)
+  (outerSize :: Size) (outerContext :: Context)
     where
 
     Document ::
@@ -59,10 +59,10 @@ data Pro
           -- the head from the body.
 
     List ::
-        list (Pro string list map 'One context)
+        list (Pro string list map 'One outerContext)
           -- ^ e.g. a list of blocks or a list of inlines
       ->
-        Pro string list map 'Many context
+        Pro string list map 'Many outerContext
           -- ^ Lists are important in the structure Prosidy (or of
           -- any markup language) because prose is largely linear;
           -- a document body is a list of paragraphs, and paragraphs
@@ -145,7 +145,7 @@ data Pro
       ->
         Pro string list map 'One 'Literal
 
--- | The 'Context' of a 'Pro' indicates what kind of elements it may be
+-- | The @outerContext@ of a 'Pro' indicates what kind of elements it may be
 -- nested within.
 --
 -- The DataKinds GHC extension lifts 'Context' to a kind and its constructors
@@ -154,7 +154,7 @@ data Context
   where
 
     -- | The top-level context containing everything else.
-    -- Only a 'Document' has this context.
+    -- Only a 'Document' has 'Root' as its @outerContext@.
     Root :: Context
 
     -- | The document body is a block context. A block is either a 'Paragraph'
@@ -175,7 +175,7 @@ data Context
     Literal :: Context
 
 -- | When a Prosidy element that has a body (other Prosidy content within the
--- element), that body consists of a list of elements. The 'Size' of a 'Pro'
+-- element), that body consists of a list of elements. The @outerSize@ of a 'Pro'
 -- indicates whether the 'Pro' represents a list of elements or a single
 -- element within such a list.
 --
@@ -187,7 +187,7 @@ data Size
     -- | Indicates that a 'Pro' represents a single inline or block element.
     One :: Size
 
-    -- | Only the 'List' constructor has a size of 'Many'.
+    -- | Only the 'List' constructor has an @outerSize@ of 'Many'.
     Many :: Size
 
 data Tag
@@ -255,13 +255,13 @@ Some reasonable options for this parameter:
 -}
 
 type BasePro
-  (size :: Size)
+  (outerSize :: Size)
   (context :: Context) =
     Pro
       ([] Char)             -- string
       []                    -- list
       (AssociationList [])  -- map
-      size
+      outerSize
       context
 
 newtype AssociationList list a b =
