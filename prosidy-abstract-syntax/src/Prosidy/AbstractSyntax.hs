@@ -179,7 +179,7 @@ data Context
     Inline :: Context
 
 -- | When a Prosidy element that has a body (other Prosidy content within the
--- element, that body consists of a list of elements. The 'Size' of a 'Pro'
+-- element), that body consists of a list of elements. The 'Size' of a 'Pro'
 -- indicates whether the 'Pro' represents a list of elements or a single
 -- element within such a list.
 --
