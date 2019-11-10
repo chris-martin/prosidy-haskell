@@ -33,12 +33,13 @@ module Prosidy.AbstractSyntax
 
   ) where
 
-import qualified Data.Char
+import Data.Char (Char)
+import Data.Kind (Type)
 
 -- | 'Pro' is the type of Prosidy content.
 
 data Pro
-  (string :: *) (list :: * -> *) (map :: * -> * -> *)
+  (string :: Type) (list :: Type -> Type) (map :: Type -> Type -> Type)
   (size :: Size) (context :: Context)
     where
 
@@ -77,11 +78,8 @@ data Pro
           -- is a paragraph.
 
     TagParagraph ::
-        Tag string
-          -- ^ Tag name
-      ->
-        Attrs string map
-          -- ^ Tag attributes
+        Tag string map
+          -- ^ Tag
       ->
         Pro string list map 'Many 'Inline
           -- ^ Tag body (a list of inline elements)
@@ -94,11 +92,8 @@ data Pro
           -- @
 
     TagBlock ::
-        Tag string
-          -- ^ Tag name
-      ->
-        Attrs string map
-          -- ^ Tag attributes
+        Tag string map
+          -- ^ Tag
       ->
         Pro string list map 'Many 'Block
           -- ^ Tag body (a list of block elements)
@@ -113,11 +108,8 @@ data Pro
           -- @
 
     TagLiteral ::
-        Tag string
-          -- ^ Tag name
-      ->
-        Attrs string map
-          -- ^ Tag attributes
+        Tag string map
+          -- ^ Tag
       ->
         string
           -- ^ Tag body (plain text)
@@ -132,11 +124,8 @@ data Pro
           -- @
 
     TagInline ::
-        Tag string
-          -- ^ Tag name
-      ->
-        Attrs string map
-          -- ^ Tag attributes
+        Tag string map
+          -- ^ Tag
       ->
         Pro string list map 'Many 'Inline
           -- ^ Tag body (a list of inline elements)
@@ -167,7 +156,8 @@ data Pro
 --
 -- The DataKinds GHC extension lifts 'Context' to a kind and its constructors
 -- 'Root', 'Block' and 'Inline' to types of the 'Context' kind.
-data Context where
+data Context
+  where
 
     -- | The top-level context containing everything else.
     -- Only a 'Document' has this context.
@@ -195,7 +185,8 @@ data Context where
 --
 -- The DataKinds GHC extension lifts 'Size' to a kind and its constructors
 -- 'One' and 'Many' to types of the 'Size' kind.
-data Size where
+data Size
+  where
 
     -- | Indicates that a 'Pro' represents a single inline or block element.
     One :: Size
@@ -203,9 +194,28 @@ data Size where
     -- | Only the 'List' constructor has a size of 'Many'.
     Many :: Size
 
-newtype Tag string = Tag string
+data Tag (string :: Type) (map :: Type -> Type -> Type)
+  where
 
-data Attrs string map = Attrs (map string ()) (map string string)
+    Tag ::
+        string
+          -- ^ Tag name
+      ->
+        attrs string map
+          -- ^ Tag attributes
+      ->
+        Tag string map
+
+data Attrs (string :: Type) (map :: Type -> Type -> Type)
+  where
+    Attrs ::
+        map string ()
+          -- ^ Flags
+      ->
+        map string string
+          -- ^ Fields
+      ->
+        Attrs string map
 
 {- $string
 
@@ -246,7 +256,7 @@ type BasePro
   (size :: Size)
   (context :: Context) =
     Pro
-      ([] Data.Char.Char)   -- string
+      ([] Char)             -- string
       []                    -- list
       (AssociationList [])  -- map
       size
