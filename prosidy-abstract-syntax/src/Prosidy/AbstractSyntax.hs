@@ -7,19 +7,15 @@ module Prosidy.AbstractSyntax
   -- * Prosidy content
     Pro (..)
 
-  -- * Attributes
+  -- * Attributes: flags and fields
   , Attrs (..)
 
-  -- * Contexts
+  -- * Content context: size and level
   , Context (..), Size (..), Level (..)
 
-  -- * Strings
+  -- * Other types: string, list, map
   -- $string
-
-  -- * Lists
   -- $list
-
-  -- * Maps
   -- $map
 
   -- * Specialization with base types
