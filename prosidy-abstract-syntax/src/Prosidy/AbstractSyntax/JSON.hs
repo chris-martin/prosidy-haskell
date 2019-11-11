@@ -1,24 +1,29 @@
 {-# OPTIONS_GHC -Wall #-}
 
-{-# LANGUAGE GADTs, KindSignatures, NoImplicitPrelude #-}
+{-# LANGUAGE ConstraintKinds, DataKinds, GADTs, KindSignatures,
+             NoImplicitPrelude, QuantifiedConstraints, RankNTypes #-}
 
 module Prosidy.AbstractSyntax.JSON where
 
 import qualified Prosidy.AbstractSyntax as P
 
 import Data.Functor (Functor (fmap))
-import Data.Kind (Type)
 
-data JSON
-  (string :: Type) (list :: Type -> Type) (map :: Type -> Type -> Type)
-    where
-      String :: string -> JSON string list map
+data JSON (deps :: P.Deps)
+  where
+    String :: (deps ~ 'P.Deps string list map) =>
+        string -> JSON deps
 
-      List :: list (JSON string list map) -> JSON string list map
+    List :: (deps ~ 'P.Deps string list map) =>
+        list (JSON deps) -> JSON deps
 
-      Map :: map string (JSON string list map) -> JSON string list map
+    Map :: (deps ~ 'P.Deps string list map) =>
+        map string (JSON deps) -> JSON deps
 
-data SpecialString = String_Attr | String_Body | String_Type | String_Paragraph | String_TagParagraph | String_TagName | String_TagBlock | String_TagLiteral | String_TagInline | String_SoftBreak
+data SpecialString = String_Attr | String_Body | String_Type
+    | String_Paragraph | String_TagParagraph | String_TagName
+    | String_TagBlock | String_TagLiteral | String_TagInline
+    | String_SoftBreak
 
 class String string
   where
@@ -32,9 +37,11 @@ class Map map
     kv :: k -> v -> map k v
     mapcat :: map k v -> map k v -> map k v
 
-convert_prosidy_to_JSON ::
-    (String string, List list, Map map) =>
-    P.Prosidy string list map context -> JSON string list map
+type Requirements deps = forall string list map.
+  (deps ~ 'P.Deps string list map, String string, List list, Map map)
+
+convert_prosidy_to_JSON :: Requirements deps =>
+    P.Prosidy deps context -> JSON deps
 
 convert_prosidy_to_JSON (P.Document attr body) =
   Map
@@ -94,4 +101,4 @@ convert_prosidy_to_JSON P.SoftBreak =
         kv (specialString String_Type) (String (specialString String_SoftBreak))
     )
 
-convert_prosidy_to_JSON (P.Attrs flags fields) = _ -- todo
+convert_prosidy_to_JSON (P.Attrs _flags _fields) = let x = x in x -- todo

@@ -23,7 +23,9 @@ module Prosidy.AbstractSyntax.Base
     pattern Prosidy.AbstractSyntax.SoftBreak,
     pattern Prosidy.AbstractSyntax.Attrs,
 
-  -- * Content context: size and level
+    BaseDeps, -- todo: figure out where this goes
+
+    -- * Content context: size and level
     Context
         ( Context ),
     Size
@@ -31,7 +33,7 @@ module Prosidy.AbstractSyntax.Base
     Level
         ( Root, Block, Inline, Meta ),
 
-  -- * Association list
+    -- * Association list
     AssociationList
         ( AssociationList )
 
@@ -42,14 +44,15 @@ import qualified Prosidy.AbstractSyntax
 
 import Data.Char (Char)
 
+type BaseDeps =
+  'Deps
+    ([] Char)             -- string
+    []                    -- list
+    (AssociationList [])  -- map
+
 -- | 'Prosidy' is the type of Prosidy content.
-type Prosidy
-  (context :: Context) =
-    Prosidy.AbstractSyntax.Prosidy
-      ([] Char)             -- string
-      []                    -- list
-      (AssociationList [])  -- map
-      context
+type Prosidy (context :: Context) =
+    Prosidy.AbstractSyntax.Prosidy BaseDeps context
 
 newtype AssociationList list a b =
     AssociationList (list (a, b))
