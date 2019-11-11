@@ -28,11 +28,7 @@ module Prosidy.AbstractSyntax
     -- * Prosidy content
     Prosidy
         ( Document, List, Paragraph, TagParagraph, TagBlock,
-          TagLiteral, TagInline, String, SoftBreak ),
-
-    -- * Attributes: flags and fields
-    Attrs
-        ( Attrs ),
+          TagLiteral, TagInline, String, SoftBreak, Attrs ),
 
     -- * Content context: size and level
     Context
@@ -40,7 +36,7 @@ module Prosidy.AbstractSyntax
     Size
         ( One, Many ),
     Level
-        ( Root, Block, Inline )
+        ( Root, Block, Inline, Meta )
 
     -- * Other types: string, list, map
     -- $otherTypes
@@ -60,7 +56,7 @@ data Prosidy
     where
 
     Document ::
-        Attrs string map
+        Prosidy string list map ('Context 'One 'Meta)
           -- ^ The beginning of a Prosidy document is the head.
           -- Each non-empty line of the head is an attribute.
       ->
@@ -97,7 +93,7 @@ data Prosidy
         string
           -- ^ Tag name
       ->
-        Attrs string map
+        Prosidy string list map ('Context 'One 'Meta)
           -- ^ Tag attributes
       ->
         Prosidy string list map ('Context 'Many 'Inline)
@@ -114,7 +110,7 @@ data Prosidy
         string
           -- ^ Tag name
       ->
-        Attrs string map
+        Prosidy string list map ('Context 'One 'Meta)
           -- ^ Tag attributes
       ->
         Prosidy string list map ('Context 'Many 'Block)
@@ -133,7 +129,7 @@ data Prosidy
         string
           -- ^ Tag name
       ->
-        Attrs string map
+        Prosidy string list map ('Context 'One 'Meta)
           -- ^ Tag attributes
       ->
         string
@@ -152,7 +148,7 @@ data Prosidy
         string
           -- ^ Tag name
       ->
-        Attrs string map
+        Prosidy string list map ('Context 'One 'Meta)
           -- ^ Tag attributes
       ->
         Prosidy string list map ('Context 'Many 'Inline)
@@ -178,6 +174,15 @@ data Prosidy
           -- rendered into another format, typically soft breaks are either
           -- replaced with a space character (or, in a CJK writing system,
           -- are simply removed).
+
+    Attrs ::
+        map string ()
+          -- ^ Flags
+      ->
+        map string string
+          -- ^ Fields
+      ->
+        Prosidy string list map ('Context 'One 'Meta)
 
 
 ---  Context  ---
@@ -223,6 +228,8 @@ data Level
     -- element has an inline level, permitting a tree of inlines.
     Inline :: Level
 
+    Meta :: Level
+
 
 ---  Size  ---
 
@@ -244,16 +251,6 @@ data Size
 
     -- | Only the 'List' constructor has an size of 'Many'.
     Many :: Size
-
-
----  Attrs  ---
-
-data Attrs (string :: Type) (map :: Type -> Type -> Type)
-  where
-    Attrs ::
-         map string ()      -- ^ Flags
-      -> map string string  -- ^ Fields
-      -> Attrs string map
 
 
 {- $otherTypes

@@ -21,10 +21,7 @@ module Prosidy.AbstractSyntax.Base
     pattern Prosidy.AbstractSyntax.TagInline,
     pattern Prosidy.AbstractSyntax.String,
     pattern Prosidy.AbstractSyntax.SoftBreak,
-
-    -- * Attributes: flags and fields
-    Attrs
-        ( Attrs ),
+    pattern Prosidy.AbstractSyntax.Attrs,
 
   -- * Content context: size and level
     Context
@@ -32,7 +29,7 @@ module Prosidy.AbstractSyntax.Base
     Size
         ( One, Many ),
     Level
-        ( Root, Block, Inline ),
+        ( Root, Block, Inline, Meta ),
 
   -- * Association list
     AssociationList
