@@ -1,6 +1,6 @@
 {-# OPTIONS_GHC -Wall #-}
 
-{-# LANGUAGE DataKinds, KindSignatures, GADTs, NoImplicitPrelude, ExplicitForAll #-}
+{-# LANGUAGE DataKinds, KindSignatures, GADTs, NoImplicitPrelude #-}
 
 module Prosidy.AbstractSyntax
   (
