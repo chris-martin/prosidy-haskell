@@ -1,6 +1,27 @@
 {-# OPTIONS_GHC -Wall #-}
+    {- All GHC warnings are enabled. -}
 
-{-# LANGUAGE DataKinds, KindSignatures, GADTs, NoImplicitPrelude #-}
+{-# LANGUAGE GADTs #-}
+    {- The 'Prosidy' type is a GADT; its data constructors have
+       different type parameters than the 'Prosidy' type itself.
+       This requires enabling the GADTs language extension. -}
+
+{-# LANGUAGE DataKinds #-}
+    {- The data kinds extension turns types into kinds and
+       data constructors into type constructors. We use this to
+       establish the kinds 'Context', 'Size', and 'Level' which
+       parameterize the 'Prosidy' type. -}
+
+{-# LANGUAGE KindSignatures #-}
+    {- We use the kind signatures extension to annotate type
+       parameters with their kind using (::). This is just like
+       a type annotation, but what follows the colons is a kind
+       rather than a type. -}
+
+{-# LANGUAGE NoImplicitPrelude #-}
+    {- This module depends on as little library code as possible,
+       even from the base package. Disabling the implicit import
+       of the Prelude module makes this more clear. -}
 
 module Prosidy.AbstractSyntax
   (
@@ -28,7 +49,11 @@ module Prosidy.AbstractSyntax
 
 import Data.Kind (Type)
 
+
+---  Prosidy  ---
+
 -- | 'Prosidy' is the type of Prosidy content.
+
 data Prosidy
   (string :: Type) (list :: Type -> Type) (map :: Type -> Type -> Type)
   (context :: Context)
@@ -154,17 +179,26 @@ data Prosidy
           -- replaced with a space character (or, in a CJK writing system,
           -- are simply removed).
 
--- | The context of a 'Prosidy' indicates what kind of place it is allowed to
--- appear within the syntax tree.
---
--- The DataKinds GHC extension lifts 'Context' to a kind.
+
+---  Context  ---
+
+{- | The context of a 'Prosidy' indicates what kind of place it is allowed to
+appear within the syntax tree.
+
+The DataKinds GHC extension lifts the 'Context' type to a kind and the
+'Context' data type constructor to a type constructor. -}
+
 data Context = Context Size Level
 
--- | The level of a 'Prosidy' indicates what kind of elements it may be
--- nested within.
---
--- The DataKinds GHC extension lifts 'Level' to a kind and its constructors
--- 'Root', 'Block' and 'Inline' to types of the 'Level' kind.
+
+---  Level  ---
+
+{- | The level of a 'Prosidy' indicates what kind of elements it may be
+nested within.
+
+The DataKinds GHC extension lifts 'Level' to a kind and its constructors
+'Root', 'Block' and 'Inline' to types of the 'Level' kind. -}
+
 data Level
   where
 
@@ -172,54 +206,62 @@ data Level
     -- Only a 'Document' appears at the 'Root' level.
     Root :: Level
 
-    -- | The document body is at the block level. A block is either a 'Paragraph'
-    -- (text not wrapped in any special notation) or a tag ('TagParagraph',
-    -- 'TagBlock', or 'TagLiteral') beginning with (@#-@) or (@#=@).
+    -- | The document body is at the block level. A block is either
+    -- a 'Paragraph' (text not wrapped in any special notation) or
+    -- a tag ('TagParagraph', 'TagBlock', or 'TagLiteral') beginning
+    -- with (@#-@) or (@#=@).
     --
-    -- Blocks have a recursive structure; the body of a 'TagBlock' element is
-    -- block-level, permitting a tree of blocks.
+    -- Blocks have a recursive structure; the body of a 'TagBlock'
+    -- element is block-level, permitting a tree of blocks.
     Block :: Level
 
-    -- | The body of a 'Paragraph' or 'TagParagraph' block is at the inline level.
-    -- The types of inlines are 'String', 'SoftBreak', and 'TagInline'.
+    -- | The body of a 'Paragraph' or 'TagParagraph' block is at the
+    -- inline level. The types of inlines are 'String', 'SoftBreak',
+    -- and 'TagInline'.
     --
-    -- Inlines have a recursive structure; the body of a 'TagInline' element
-    -- has an inline level, permitting a tree of inlines.
+    -- Inlines have a recursive structure; the body of a 'TagInline'
+    -- element has an inline level, permitting a tree of inlines.
     Inline :: Level
 
--- | When a Prosidy element that has a body (other Prosidy content within the
--- element), that body consists of a list of elements. The size of a 'Prosidy'
--- indicates whether the 'Prosidy' represents a list of elements or a single
--- element within such a list.
---
--- The DataKinds GHC extension lifts 'Size' to a kind and its constructors
--- 'One' and 'Many' to types of the 'Size' kind.
+
+---  Size  ---
+
+{- | When a Prosidy element that has a body (other Prosidy content
+within the element), that body consists of a list of elements.
+The size of a 'Prosidy' indicates whether the 'Prosidy' represents
+a list of elements or a single element within such a list.
+
+The DataKinds GHC extension lifts 'Size' to a kind and its
+constructors 'One' and 'Many' to types of the 'Size' kind. -}
+
 data Size
   where
 
-    -- | Indicates that a 'Prosidy' represents a single inline or block element.
+    -- | Indicates that a 'Prosidy' value represents a
+    -- single inline or block element. This is the size
+    -- of most 'Prosidy' constructors.
     One :: Size
 
     -- | Only the 'List' constructor has an size of 'Many'.
     Many :: Size
 
-data Attrs
-    (string :: Type) (map :: Type -> Type -> Type)
+
+---  Attrs  ---
+
+data Attrs (string :: Type) (map :: Type -> Type -> Type)
   where
     Attrs ::
-        map string ()
-          -- ^ Flags
-      ->
-        map string string
-          -- ^ Fields
-      ->
-        Attrs string map
+         map string ()      -- ^ Flags
+      -> map string string  -- ^ Fields
+      -> Attrs string map
+
 
 {- $otherTypes
 
 === String
 
-The representation of text within a 'Prosidy' value is controlled by the @string@ type parameter.
+The representation of text within a 'Prosidy' value
+is controlled by the @string@ type parameter.
 
 Some reasonable options for this parameter:
 
@@ -229,7 +271,8 @@ Some reasonable options for this parameter:
 
 === List
 
-The representation of sequences within a 'Prosidy' value is controlled by the @list@ type parameter.
+The representation of sequences within a 'Prosidy' value
+is controlled by the @list@ type parameter.
 
 Some reasonable options for this parameter:
 
@@ -239,11 +282,13 @@ Some reasonable options for this parameter:
 
 === Map
 
-The representation of key-value mappings within a 'Prosidy' value is controlled by the @map@ type parameter.
+The representation of key-value mappings within a 'Prosidy'
+value is controlled by the @map@ type parameter.
 
 Some reasonable options for this parameter:
 
   - 'Data.Map.Map' from the @containers@ package
-  - 'Data.HashMap.HashMap' from the @unordered-containers@ package
+  - 'Data.HashMap.HashMap' from the
+    @unordered-containers@ package
 
 -}
