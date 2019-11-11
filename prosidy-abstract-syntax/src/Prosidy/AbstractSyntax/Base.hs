@@ -1,6 +1,7 @@
 {-# OPTIONS_GHC -Wall #-}
 
-{-# LANGUAGE DataKinds, KindSignatures, NoImplicitPrelude #-}
+{-# LANGUAGE DataKinds, KindSignatures, NoImplicitPrelude,
+             PatternSynonyms #-}
 
 -- | A variant of the "Prosidy.AbstractSyntax" module with the
 -- general data structure type parameters of the
@@ -11,6 +12,15 @@ module Prosidy.AbstractSyntax.Base
   (
     -- * Prosidy content
     Prosidy,
+    pattern Prosidy.AbstractSyntax.Document,
+    pattern Prosidy.AbstractSyntax.List,
+    pattern Prosidy.AbstractSyntax.Paragraph,
+    pattern Prosidy.AbstractSyntax.TagParagraph,
+    pattern Prosidy.AbstractSyntax.TagBlock,
+    pattern Prosidy.AbstractSyntax.TagLiteral,
+    pattern Prosidy.AbstractSyntax.TagInline,
+    pattern Prosidy.AbstractSyntax.String,
+    pattern Prosidy.AbstractSyntax.SoftBreak,
 
     -- * Attributes: flags and fields
     Attrs
