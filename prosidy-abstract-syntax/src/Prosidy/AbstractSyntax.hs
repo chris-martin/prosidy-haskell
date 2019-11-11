@@ -4,17 +4,25 @@
 
 module Prosidy.AbstractSyntax
   (
-  -- * Prosidy content
-    Prosidy (..)
+    -- * Prosidy content
+    Prosidy
+        ( Document, List, Paragraph, TagParagraph, TagBlock,
+          TagLiteral, TagInline, String, SoftBreak ),
 
-  -- * Attributes: flags and fields
-  , Attrs (..)
+    -- * Attributes: flags and fields
+    Attrs
+        ( Attrs ),
 
-  -- * Content context: size and level
-  , Context (..), Size (..), Level (..)
+    -- * Content context: size and level
+    Context
+        ( Context ),
+    Size
+        ( One, Many ),
+    Level
+        ( Root, Block, Inline )
 
-  -- * Other types: string, list, map
-  -- $otherTypes
+    -- * Other types: string, list, map
+    -- $otherTypes
 
   ) where
 

@@ -9,17 +9,24 @@
 
 module Prosidy.AbstractSyntax.Base
   (
-  -- * Prosidy content
-    Prosidy
+    -- * Prosidy content
+    Prosidy,
 
-  -- * Attributes: flags and fields
-  , Attrs (..)
+    -- * Attributes: flags and fields
+    Attrs
+        ( Attrs ),
 
   -- * Content context: size and level
-  , Context (..), Size (..), Level (..)
+    Context
+        ( Context ),
+    Size
+        ( One, Many ),
+    Level
+        ( Root, Block, Inline ),
 
   -- * Association list
-  , AssociationList (..)
+    AssociationList
+        ( AssociationList )
 
   ) where
 
