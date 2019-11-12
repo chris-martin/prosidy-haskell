@@ -237,6 +237,9 @@ data Level
     -- element has an inline level, permitting a tree of inlines.
     Inline :: Level
 
+    -- | The meta level consists of the document header and all
+    -- content within @[@...@]@ brackets. 'Attrs' is the only
+    -- type of content at the meta level.
     Meta :: Level
 
 
