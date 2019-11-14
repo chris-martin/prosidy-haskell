@@ -15,10 +15,10 @@ data JS (f :: Foundation) =
   | JsList (List f (JS f))
   | JsDict (Dict f (JS f))
 
-data JsKey = String_Attr | String_Body | String_Type
-    | String_Paragraph | String_TagParagraph | String_TagName
-    | String_TagBlock | String_TagLiteral | String_TagInline
-    | String_SoftBreak
+data JsKey = JK_Attr | JK_Body | JK_Type
+    | JK_Paragraph | JK_TagParagraph | JK_TagName
+    | JK_TagBlock | JK_TagLiteral | JK_TagInline
+    | JK_SoftBreak
 
 class IsString string
   where
@@ -40,8 +40,8 @@ convert_prosidy_to_JS :: Requirements f =>
 
 convert_prosidy_to_JS (P.Document attr body) =
   JsDict
-    ( kv (jsKeyString String_Attr) (convert_prosidy_to_JS attr) `mapcat`
-      kv (jsKeyString String_Body) (convert_prosidy_to_JS body)
+    ( kv (jsKeyString JK_Attr) (convert_prosidy_to_JS attr) `mapcat`
+      kv (jsKeyString JK_Body) (convert_prosidy_to_JS body)
     )
 
 convert_prosidy_to_JS (P.List xs) =
@@ -52,40 +52,40 @@ convert_prosidy_to_JS (P.List xs) =
 
 convert_prosidy_to_JS (P.Paragraph body) =
   JsDict
-    ( kv (jsKeyString String_Type) (JsString (jsKeyString String_Paragraph)) `mapcat`
-      kv (jsKeyString String_Body) (convert_prosidy_to_JS body)
+    ( kv (jsKeyString JK_Type) (JsString (jsKeyString JK_Paragraph)) `mapcat`
+      kv (jsKeyString JK_Body) (convert_prosidy_to_JS body)
     )
 
 convert_prosidy_to_JS (P.TagParagraph name attr body) =
   JsDict
-    ( kv (jsKeyString String_Type) (JsString (jsKeyString String_TagParagraph)) `mapcat`
-      kv (jsKeyString String_TagName) (JsString name) `mapcat`
-      kv (jsKeyString String_Attr) (convert_prosidy_to_JS attr) `mapcat`
-      kv (jsKeyString String_Body) (convert_prosidy_to_JS body)
+    ( kv (jsKeyString JK_Type) (JsString (jsKeyString JK_TagParagraph)) `mapcat`
+      kv (jsKeyString JK_TagName) (JsString name) `mapcat`
+      kv (jsKeyString JK_Attr) (convert_prosidy_to_JS attr) `mapcat`
+      kv (jsKeyString JK_Body) (convert_prosidy_to_JS body)
     )
 
 convert_prosidy_to_JS (P.TagBlock name attr body) =
   JsDict
-    ( kv (jsKeyString String_Type) (JsString (jsKeyString String_TagBlock)) `mapcat`
-      kv (jsKeyString String_TagName) (JsString name) `mapcat`
-      kv (jsKeyString String_Attr) (convert_prosidy_to_JS attr) `mapcat`
-      kv (jsKeyString String_Body) (convert_prosidy_to_JS body)
+    ( kv (jsKeyString JK_Type) (JsString (jsKeyString JK_TagBlock)) `mapcat`
+      kv (jsKeyString JK_TagName) (JsString name) `mapcat`
+      kv (jsKeyString JK_Attr) (convert_prosidy_to_JS attr) `mapcat`
+      kv (jsKeyString JK_Body) (convert_prosidy_to_JS body)
     )
 
 convert_prosidy_to_JS (P.TagLiteral name attr body) =
   JsDict
-    ( kv (jsKeyString String_Type) (JsString (jsKeyString String_TagLiteral)) `mapcat`
-      kv (jsKeyString String_TagName) (JsString name) `mapcat`
-      kv (jsKeyString String_Attr) (convert_prosidy_to_JS attr) `mapcat`
-      kv (jsKeyString String_Body) (JsString body)
+    ( kv (jsKeyString JK_Type) (JsString (jsKeyString JK_TagLiteral)) `mapcat`
+      kv (jsKeyString JK_TagName) (JsString name) `mapcat`
+      kv (jsKeyString JK_Attr) (convert_prosidy_to_JS attr) `mapcat`
+      kv (jsKeyString JK_Body) (JsString body)
     )
 
 convert_prosidy_to_JS (P.TagInline name attr body) =
   JsDict
-    ( kv (jsKeyString String_Type) (JsString (jsKeyString String_TagInline)) `mapcat`
-      kv (jsKeyString String_TagName) (JsString name) `mapcat`
-      kv (jsKeyString String_Attr) (convert_prosidy_to_JS attr) `mapcat`
-      kv (jsKeyString String_Body) (convert_prosidy_to_JS body)
+    ( kv (jsKeyString JK_Type) (JsString (jsKeyString JK_TagInline)) `mapcat`
+      kv (jsKeyString JK_TagName) (JsString name) `mapcat`
+      kv (jsKeyString JK_Attr) (convert_prosidy_to_JS attr) `mapcat`
+      kv (jsKeyString JK_Body) (convert_prosidy_to_JS body)
     )
 
 convert_prosidy_to_JS (P.StringInline x) = JsString x
@@ -93,7 +93,7 @@ convert_prosidy_to_JS (P.StringInline x) = JsString x
 convert_prosidy_to_JS P.SoftBreak =
   JsDict
     (
-        kv (jsKeyString String_Type) (JsString (jsKeyString String_SoftBreak))
+        kv (jsKeyString JK_Type) (JsString (jsKeyString JK_SoftBreak))
     )
 
 convert_prosidy_to_JS (P.Attrs _flags _fields) = let x = x in x -- todo
