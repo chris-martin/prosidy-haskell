@@ -23,7 +23,7 @@
        even from the base package. Disabling the implicit import
        of the Prelude module makes this more clear. -}
 
-{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE LambdaCase, FlexibleContexts, FlexibleInstances, FunctionalDependencies, TypeFamilies, ExplicitForAll, StandaloneDeriving, DeriveFunctor #-}
 
 module Prosidy.AbstractSyntax
   (
@@ -41,12 +41,23 @@ module Prosidy.AbstractSyntax
     Foundation ( Foundation ),
     String, List, Dict,
     BaseFoundation,
-    AssociationList ( AssociationList )
+    AssociationList ( AssociationList ),
+    ListBuilding ( listSingleton, listConcat ),
+    MapBuilding ( mapSingleton, mapConcat ),
+
+    -- * Conversion with JSON-like types
+    JS ( JsString, JsList, JsDict ),
+    JsKey ( .. ), JsKeyString ( .. ),
+    prosidyJS
 
   ) where
 
 import Data.Char (Char)
+import Data.Function (($))
+import Data.Functor (Functor (fmap))
 import Data.Kind (Type)
+
+import qualified Data.List
 
 
 ---  Prosidy  ---
@@ -288,6 +299,21 @@ type family List a where List ('Foundation string list map) = list
 --   @unordered-containers@ package
 type family Dict a where Dict ('Foundation string list map) = map
 
+class Functor list => ListBuilding (list :: Type -> Type)
+  where
+    listSingleton :: a -> list a
+    listConcat :: list a -> list a -> list a
+
+instance ListBuilding []
+  where
+    listSingleton x = x : []
+    listConcat = (Data.List.++)
+
+class Functor map => MapBuilding (k :: Type) (map :: Type -> Type) | map -> k
+  where
+    mapSingleton :: k -> v -> map v
+    mapConcat :: map v -> map v -> map v
+
 type BaseFoundation =
   'Foundation
     ([] Char)                       -- string
@@ -296,3 +322,90 @@ type BaseFoundation =
 
 newtype AssociationList list a b =
     AssociationList (list (a, b))
+
+deriving instance (Functor list) => Functor (AssociationList list a)
+
+instance (ListBuilding list) => MapBuilding k (AssociationList list k)
+  where
+    mapSingleton k v = AssociationList (listSingleton (k, v))
+    mapConcat (AssociationList a) (AssociationList b) = AssociationList (listConcat a b)
+
+
+---  JSON  ---
+
+data JS (f :: Foundation) =
+    JsString (String f)
+  | JsList (List f (JS f))
+  | JsDict (Dict f (JS f))
+
+data JsKey = JK_Attr | JK_Body | JK_Type
+    | JK_Paragraph | JK_TagParagraph | JK_Tag
+    | JK_TagBlock | JK_TagLiteral | JK_TagInline
+    | JK_SoftBreak
+
+class JsKeyString (string :: Type)
+  where
+    jsKeyString :: JsKey -> string
+
+instance JsKeyString ([] Char)
+  where
+    jsKeyString =
+      \case
+        JK_Attr         -> "attr"
+        JK_Body         -> "body"
+        JK_Type         -> "type"
+        JK_Paragraph    -> "paragraph"
+        JK_TagParagraph -> "tagParagraph"
+        JK_Tag          -> "tag"
+        JK_TagBlock     -> "tagBlock"
+        JK_TagLiteral   -> "tagLiteral"
+        JK_TagInline    -> "tagInline"
+        JK_SoftBreak    -> "softBreak"
+
+prosidyJS ::
+    (
+      JsKeyString (String f),
+      Functor (List f),
+      MapBuilding (String f) (Dict f)
+    )
+  =>
+    Prosidy f context -> JS f
+
+prosidyJS =
+  let a + b = mapConcat a b                     ; infixl 5 +
+      k .= v = mapSingleton (jsKeyString k) v   ; infixl 6 .=
+  in \case
+
+    StringInline x              -> JsString x
+
+    List xs                     -> JsList $ fmap prosidyJS xs
+
+    Document attr body          -> JsDict $ JK_Attr .= prosidyJS attr
+                                          + JK_Body .= prosidyJS body
+
+    Paragraph body              -> JsDict $ JK_Type .= JsString (jsKeyString JK_Paragraph)
+                                          + JK_Body .= prosidyJS body
+
+    TagParagraph name attr body -> JsDict $ JK_Type .= JsString (jsKeyString JK_TagParagraph)
+                                          + JK_Tag  .= JsString name
+                                          + JK_Attr .= prosidyJS attr
+                                          + JK_Body .= prosidyJS body
+
+    TagBlock name attr body     -> JsDict $ JK_Type .= JsString (jsKeyString JK_TagBlock)
+                                          + JK_Tag  .= JsString name
+                                          + JK_Attr .= prosidyJS attr
+                                          + JK_Body .= prosidyJS body
+
+    TagLiteral name attr body   -> JsDict $ JK_Type .= JsString (jsKeyString JK_TagLiteral)
+                                          + JK_Tag  .= JsString name
+                                          + JK_Attr .= prosidyJS attr
+                                          + JK_Body .= JsString body
+
+    TagInline name attr body    -> JsDict $ JK_Type .= JsString (jsKeyString JK_TagInline)
+                                          + JK_Tag  .= JsString name
+                                          + JK_Attr .= prosidyJS attr
+                                          + JK_Body .= prosidyJS body
+
+    SoftBreak                   -> JsDict $ JK_Type .= JsString (jsKeyString JK_SoftBreak)
+
+    Attrs _flags _fields        -> let x = x in x -- todo
