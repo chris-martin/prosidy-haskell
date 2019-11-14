@@ -6,7 +6,7 @@
 module Prosidy.AbstractSyntax.JSON where
 
 import qualified Prosidy.AbstractSyntax as P
-import Prosidy.AbstractSyntax.Foundation
+import Prosidy.AbstractSyntax (Foundation, String, List, Map)
 
 import Data.Functor (Functor (fmap))
 

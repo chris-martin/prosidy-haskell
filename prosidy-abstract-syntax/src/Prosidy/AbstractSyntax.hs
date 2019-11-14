@@ -23,37 +23,37 @@
        even from the base package. Disabling the implicit import
        of the Prelude module makes this more clear. -}
 
+{-# LANGUAGE TypeFamilies #-}
+
 module Prosidy.AbstractSyntax
   (
     -- * Prosidy content
-    Prosidy
-        ( Document, List, Paragraph, TagParagraph, TagBlock,
-          TagLiteral, TagInline, StringInline, SoftBreak, Attrs ),
+    Prosidy ( Document, List, Paragraph, TagParagraph,
+              TagBlock, TagLiteral, TagInline,
+              StringInline, SoftBreak, Attrs ),
 
     -- * Content context: size and level
-    Context
-        ( Context ),
-    Size
-        ( One, Many ),
-    Level
-        ( Root, Block, Inline, Meta )
+    Context ( Context ),
+    Size    ( One, Many ),
+    Level   ( Root, Block, Inline, Meta ),
 
-    -- * Other types: string, list, map
-    -- $otherTypes
+    -- * Foundation: string, list, map
+    Foundation ( Foundation ),
+    String, List, Map,
+    BaseFoundation,
+    AssociationList ( AssociationList )
 
   ) where
 
-import Prosidy.AbstractSyntax.Foundation
+import Data.Char (Char)
+import Data.Kind (Type)
 
 
 ---  Prosidy  ---
 
 -- | 'Prosidy' is the type of Prosidy content.
 
-data Prosidy
-  (f :: Foundation)
-  (context :: Context)
-    where
+data Prosidy (f :: Foundation) (context :: Context) where
 
     Document ::
         Prosidy f ('Context 'One 'Meta)
@@ -256,39 +256,46 @@ data Size
     Many :: Size
 
 
-{- $otherTypes
+---  Foundation  ---
 
-=== String
+data Foundation =
+  Foundation
+    Type
+      -- ^ String
+      --
+      -- Some reasonable options for this parameter:
+      --
+      -- - 'Data.String.String' from the @base@ package
+      -- - 'Data.Text.Text' from the @text@ package
+      -- - 'Data.Text.Lazy.Text' from the @text@ package
+    (Type -> Type)
+      -- ^ List
+      --
+      -- Some reasonable options for this parameter:
+      --
+      -- - The built-in @[]@ type
+      -- - 'Data.Sequence.Seq' from the @containers@ package
+      -- - 'Data.Vector.Vector' from the @vector@ package
+    (Type -> Type -> Type)
+      -- ^ Map
+      --
+      -- Some reasonable options for this parameter:
+      --
+      -- - 'Data.Map.Map' from the @containers@ package
+      -- - 'Data.HashMap.HashMap' from the
+      --   @unordered-containers@ package
 
-The representation of text within a 'Prosidy' value
-is controlled by the @string@ type parameter.
+type family String a where String ('Foundation string list map) = string
 
-Some reasonable options for this parameter:
+type family List a where List ('Foundation string list map) = list
 
-  - 'Data.String.String' from the @base@ package
-  - 'Data.Text.Text' from the @text@ package
-  - 'Data.Text.Lazy.Text' from the @text@ package
+type family Map a where Map ('Foundation string list map) = map
 
-=== List
+type BaseFoundation =
+  'Foundation
+    ([] Char)             -- string
+    []                    -- list
+    (AssociationList [])  -- map
 
-The representation of sequences within a 'Prosidy' value
-is controlled by the @list@ type parameter.
-
-Some reasonable options for this parameter:
-
-  - The built-in @[]@ type
-  - 'Data.Sequence.Seq' from the @containers@ package
-  - 'Data.Vector.Vector' from the @vector@ package
-
-=== Map
-
-The representation of key-value mappings within a 'Prosidy'
-value is controlled by the @map@ type parameter.
-
-Some reasonable options for this parameter:
-
-  - 'Data.Map.Map' from the @containers@ package
-  - 'Data.HashMap.HashMap' from the
-    @unordered-containers@ package
-
--}
+newtype AssociationList list a b =
+    AssociationList (list (a, b))
