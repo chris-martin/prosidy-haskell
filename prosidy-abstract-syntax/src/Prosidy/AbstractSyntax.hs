@@ -28,9 +28,7 @@ module Prosidy.AbstractSyntax
     -- * Prosidy content
     Prosidy
         ( Document, List, Paragraph, TagParagraph, TagBlock,
-          TagLiteral, TagInline, String, SoftBreak, Attrs ),
-
-    Deps (..), -- todo: figure out where this goes
+          TagLiteral, TagInline, StringInline, SoftBreak, Attrs ),
 
     -- * Content context: size and level
     Context
@@ -45,14 +43,7 @@ module Prosidy.AbstractSyntax
 
   ) where
 
-import Data.Kind (Type)
-
--- todo: figure out a better name for this
-data Deps =
-  Deps
-    Type -- ^ String
-    (Type -> Type) -- ^ List
-    (Type -> Type -> Type) -- ^ Map
+import Prosidy.AbstractSyntax.Foundation
 
 
 ---  Prosidy  ---
@@ -60,72 +51,72 @@ data Deps =
 -- | 'Prosidy' is the type of Prosidy content.
 
 data Prosidy
-  (deps :: Deps)
+  (f :: Foundation)
   (context :: Context)
     where
 
     Document ::
-        Prosidy deps ('Context 'One 'Meta)
+        Prosidy f ('Context 'One 'Meta)
           -- ^ The beginning of a Prosidy document is the head.
           -- Each non-empty line of the head is an attribute.
       ->
-        Prosidy deps ('Context 'Many 'Block)
+        Prosidy f ('Context 'Many 'Block)
           -- ^ A Prosidy document body consists of a list of blocks.
           -- Blocks are (typically) separated by two consecutive line
           -- breaks.
       ->
-        Prosidy deps ('Context 'One 'Root)
+        Prosidy f ('Context 'One 'Root)
           -- ^ A Prosidy document consists of a head and a body. The
           -- first line containing only three dashes (@---@) separates
           -- the head from the body.
 
-    List :: (deps ~ 'Deps string list map) =>
-        list (Prosidy deps ('Context 'One level))
+    List ::
+        List f (Prosidy f ('Context 'One level))
           -- ^ e.g. a list of blocks or a list of inlines
       ->
-        Prosidy deps ('Context 'Many level)
+        Prosidy f ('Context 'Many level)
           -- ^ Lists are important in the structure Prosidy (or of
           -- any markup language) because prose is largely linear;
           -- a document body is a list of paragraphs, and paragraphs
           -- are lists of words.
 
     Paragraph ::
-        Prosidy deps ('Context 'Many 'Inline)
+        Prosidy f ('Context 'Many 'Inline)
           -- ^ A list of inline elements (plain text, inline tags,
           -- soft breaks).
       ->
-        Prosidy deps ('Context 'One 'Block)
+        Prosidy f ('Context 'One 'Block)
           -- ^ A block of text not wrapped in any special notation
           -- is a paragraph.
 
-    TagParagraph :: (deps ~ 'Deps string list map) =>
-        string
+    TagParagraph ::
+        String f
           -- ^ Tag name
       ->
-        Prosidy deps ('Context 'One 'Meta)
+        Prosidy f ('Context 'One 'Meta)
           -- ^ Tag attributes
       ->
-        Prosidy deps ('Context 'Many 'Inline)
+        Prosidy f ('Context 'Many 'Inline)
           -- ^ Tag body: a list of inlines
       ->
-        Prosidy deps ('Context 'One 'Block)
+        Prosidy f ('Context 'One 'Block)
           -- ^ A block of the following form:
           --
           -- @
           -- #-tagname[attrs]{inlines}
           -- @
 
-    TagBlock :: (deps ~ 'Deps string list map) =>
-        string
+    TagBlock ::
+        String f
           -- ^ Tag name
       ->
-        Prosidy deps ('Context 'One 'Meta)
+        Prosidy f ('Context 'One 'Meta)
           -- ^ Tag attributes
       ->
-        Prosidy deps ('Context 'Many 'Block)
+        Prosidy f ('Context 'Many 'Block)
           -- ^ Tag body: a list of blocks
       ->
-        Prosidy deps ('Context 'One 'Block)
+        Prosidy f ('Context 'One 'Block)
           -- ^ A block of the following form:
           --
           -- @
@@ -134,17 +125,17 @@ data Prosidy
           -- #:end
           -- @
 
-    TagLiteral :: (deps ~ 'Deps string list map) =>
-        string
+    TagLiteral ::
+        String f
           -- ^ Tag name
       ->
-        Prosidy deps ('Context 'One 'Meta)
+        Prosidy f ('Context 'One 'Meta)
           -- ^ Tag attributes
       ->
-        string
+        String f
           -- ^ Tag body: a literal string
       ->
-        Prosidy deps ('Context 'One 'Block)
+        Prosidy f ('Context 'One 'Block)
           -- ^ A block of the following form:
           --
           -- @
@@ -153,45 +144,45 @@ data Prosidy
           -- #:end
           -- @
 
-    TagInline :: (deps ~ 'Deps string list map) =>
-        string
+    TagInline ::
+        String f
           -- ^ Tag name
       ->
-        Prosidy deps ('Context 'One 'Meta)
+        Prosidy f ('Context 'One 'Meta)
           -- ^ Tag attributes
       ->
-        Prosidy deps ('Context 'Many 'Inline)
+        Prosidy f ('Context 'Many 'Inline)
           -- ^ Tag body: a list of inline elements
       ->
-        Prosidy deps ('Context 'One 'Inline)
+        Prosidy f ('Context 'One 'Inline)
           -- ^ A tag within a paragraph, of the following form:
           --
           -- @
           -- #tagname[attrs]{inlines}
           -- @
 
-    String :: (deps ~ 'Deps string list map) =>
-        string
+    StringInline ::
+        String f
           -- ^ Plain text
       ->
-        Prosidy deps ('Context 'One 'Inline)
+        Prosidy f ('Context 'One 'Inline)
           -- ^ A plain text inline element
 
     SoftBreak ::
-        Prosidy deps ('Context 'One 'Inline)
+        Prosidy f ('Context 'One 'Inline)
           -- ^ A line break within a paragraph. When a Prosidy document is
           -- rendered into another format, typically soft breaks are either
           -- replaced with a space character (or, in a CJK writing system,
           -- are simply removed).
 
-    Attrs :: (deps ~ 'Deps string list map) =>
-        map string ()
+    Attrs ::
+        Map f (String f) ()
           -- ^ Flags
       ->
-        map string string
+        Map f (String f) (String f)
           -- ^ Fields
       ->
-        Prosidy deps ('Context 'One 'Meta)
+        Prosidy f ('Context 'One 'Meta)
 
 
 ---  Context  ---
