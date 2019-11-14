@@ -15,14 +15,14 @@ data JSON (f :: Foundation) =
   | JsList (List f (JSON f))
   | JsDict (Dict f (JSON f))
 
-data SpecialString = String_Attr | String_Body | String_Type
+data JsKey = String_Attr | String_Body | String_Type
     | String_Paragraph | String_TagParagraph | String_TagName
     | String_TagBlock | String_TagLiteral | String_TagInline
     | String_SoftBreak
 
 class IsString string
   where
-    specialString :: SpecialString -> string
+    jsKeyString :: JsKey -> string
 
 class Functor list => IsList list
   where
@@ -40,8 +40,8 @@ convert_prosidy_to_JSON :: Requirements f =>
 
 convert_prosidy_to_JSON (P.Document attr body) =
   JsDict
-    ( kv (specialString String_Attr) (convert_prosidy_to_JSON attr) `mapcat`
-      kv (specialString String_Body) (convert_prosidy_to_JSON body)
+    ( kv (jsKeyString String_Attr) (convert_prosidy_to_JSON attr) `mapcat`
+      kv (jsKeyString String_Body) (convert_prosidy_to_JSON body)
     )
 
 convert_prosidy_to_JSON (P.List xs) =
@@ -52,40 +52,40 @@ convert_prosidy_to_JSON (P.List xs) =
 
 convert_prosidy_to_JSON (P.Paragraph body) =
   JsDict
-    ( kv (specialString String_Type) (JsString (specialString String_Paragraph)) `mapcat`
-      kv (specialString String_Body) (convert_prosidy_to_JSON body)
+    ( kv (jsKeyString String_Type) (JsString (jsKeyString String_Paragraph)) `mapcat`
+      kv (jsKeyString String_Body) (convert_prosidy_to_JSON body)
     )
 
 convert_prosidy_to_JSON (P.TagParagraph name attr body) =
   JsDict
-    ( kv (specialString String_Type) (JsString (specialString String_TagParagraph)) `mapcat`
-      kv (specialString String_TagName) (JsString name) `mapcat`
-      kv (specialString String_Attr) (convert_prosidy_to_JSON attr) `mapcat`
-      kv (specialString String_Body) (convert_prosidy_to_JSON body)
+    ( kv (jsKeyString String_Type) (JsString (jsKeyString String_TagParagraph)) `mapcat`
+      kv (jsKeyString String_TagName) (JsString name) `mapcat`
+      kv (jsKeyString String_Attr) (convert_prosidy_to_JSON attr) `mapcat`
+      kv (jsKeyString String_Body) (convert_prosidy_to_JSON body)
     )
 
 convert_prosidy_to_JSON (P.TagBlock name attr body) =
   JsDict
-    ( kv (specialString String_Type) (JsString (specialString String_TagBlock)) `mapcat`
-      kv (specialString String_TagName) (JsString name) `mapcat`
-      kv (specialString String_Attr) (convert_prosidy_to_JSON attr) `mapcat`
-      kv (specialString String_Body) (convert_prosidy_to_JSON body)
+    ( kv (jsKeyString String_Type) (JsString (jsKeyString String_TagBlock)) `mapcat`
+      kv (jsKeyString String_TagName) (JsString name) `mapcat`
+      kv (jsKeyString String_Attr) (convert_prosidy_to_JSON attr) `mapcat`
+      kv (jsKeyString String_Body) (convert_prosidy_to_JSON body)
     )
 
 convert_prosidy_to_JSON (P.TagLiteral name attr body) =
   JsDict
-    ( kv (specialString String_Type) (JsString (specialString String_TagLiteral)) `mapcat`
-      kv (specialString String_TagName) (JsString name) `mapcat`
-      kv (specialString String_Attr) (convert_prosidy_to_JSON attr) `mapcat`
-      kv (specialString String_Body) (JsString body)
+    ( kv (jsKeyString String_Type) (JsString (jsKeyString String_TagLiteral)) `mapcat`
+      kv (jsKeyString String_TagName) (JsString name) `mapcat`
+      kv (jsKeyString String_Attr) (convert_prosidy_to_JSON attr) `mapcat`
+      kv (jsKeyString String_Body) (JsString body)
     )
 
 convert_prosidy_to_JSON (P.TagInline name attr body) =
   JsDict
-    ( kv (specialString String_Type) (JsString (specialString String_TagInline)) `mapcat`
-      kv (specialString String_TagName) (JsString name) `mapcat`
-      kv (specialString String_Attr) (convert_prosidy_to_JSON attr) `mapcat`
-      kv (specialString String_Body) (convert_prosidy_to_JSON body)
+    ( kv (jsKeyString String_Type) (JsString (jsKeyString String_TagInline)) `mapcat`
+      kv (jsKeyString String_TagName) (JsString name) `mapcat`
+      kv (jsKeyString String_Attr) (convert_prosidy_to_JSON attr) `mapcat`
+      kv (jsKeyString String_Body) (convert_prosidy_to_JSON body)
     )
 
 convert_prosidy_to_JSON (P.StringInline x) = JsString x
@@ -93,7 +93,7 @@ convert_prosidy_to_JSON (P.StringInline x) = JsString x
 convert_prosidy_to_JSON P.SoftBreak =
   JsDict
     (
-        kv (specialString String_Type) (JsString (specialString String_SoftBreak))
+        kv (jsKeyString String_Type) (JsString (jsKeyString String_SoftBreak))
     )
 
 convert_prosidy_to_JSON (P.Attrs _flags _fields) = let x = x in x -- todo
