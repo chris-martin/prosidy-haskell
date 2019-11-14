@@ -1,7 +1,9 @@
 {-# OPTIONS_GHC -Wall #-}
 
-{-# LANGUAGE ConstraintKinds, DataKinds, FlexibleContexts, FunctionalDependencies, GADTs, KindSignatures, MultiParamTypeClasses,
-             NoImplicitPrelude, QuantifiedConstraints, RankNTypes #-}
+{-# LANGUAGE ConstraintKinds, DataKinds, FlexibleContexts,
+             FunctionalDependencies, GADTs, KindSignatures, LambdaCase,
+             MultiParamTypeClasses, NoImplicitPrelude,
+             QuantifiedConstraints, RankNTypes #-}
 
 module Prosidy.AbstractSyntax.JSON where
 
@@ -35,65 +37,52 @@ class IsDict k map | map -> k
 type Requirements f =
   (IsString (String f), IsList (List f), IsDict (String f) (Dict f))
 
-prosidyJS :: Requirements f =>
-    P.Prosidy f context -> JS f
-
-prosidyJS (P.Document attr body) =
-  JsDict
-    ( kv (jsKeyString JK_Attr) (prosidyJS attr) `mapcat`
-      kv (jsKeyString JK_Body) (prosidyJS body)
-    )
-
-prosidyJS (P.List xs) =
-  JsList
-    (
-      fmap prosidyJS xs
-    )
-
-prosidyJS (P.Paragraph body) =
-  JsDict
-    ( kv (jsKeyString JK_Type) (JsString (jsKeyString JK_Paragraph)) `mapcat`
-      kv (jsKeyString JK_Body) (prosidyJS body)
-    )
-
-prosidyJS (P.TagParagraph name attr body) =
-  JsDict
-    ( kv (jsKeyString JK_Type) (JsString (jsKeyString JK_TagParagraph)) `mapcat`
-      kv (jsKeyString JK_TagName) (JsString name) `mapcat`
-      kv (jsKeyString JK_Attr) (prosidyJS attr) `mapcat`
-      kv (jsKeyString JK_Body) (prosidyJS body)
-    )
-
-prosidyJS (P.TagBlock name attr body) =
-  JsDict
-    ( kv (jsKeyString JK_Type) (JsString (jsKeyString JK_TagBlock)) `mapcat`
-      kv (jsKeyString JK_TagName) (JsString name) `mapcat`
-      kv (jsKeyString JK_Attr) (prosidyJS attr) `mapcat`
-      kv (jsKeyString JK_Body) (prosidyJS body)
-    )
-
-prosidyJS (P.TagLiteral name attr body) =
-  JsDict
-    ( kv (jsKeyString JK_Type) (JsString (jsKeyString JK_TagLiteral)) `mapcat`
-      kv (jsKeyString JK_TagName) (JsString name) `mapcat`
-      kv (jsKeyString JK_Attr) (prosidyJS attr) `mapcat`
-      kv (jsKeyString JK_Body) (JsString body)
-    )
-
-prosidyJS (P.TagInline name attr body) =
-  JsDict
-    ( kv (jsKeyString JK_Type) (JsString (jsKeyString JK_TagInline)) `mapcat`
-      kv (jsKeyString JK_TagName) (JsString name) `mapcat`
-      kv (jsKeyString JK_Attr) (prosidyJS attr) `mapcat`
-      kv (jsKeyString JK_Body) (prosidyJS body)
-    )
-
-prosidyJS (P.StringInline x) = JsString x
-
-prosidyJS P.SoftBreak =
-  JsDict
-    (
-        kv (jsKeyString JK_Type) (JsString (jsKeyString JK_SoftBreak))
-    )
-
-prosidyJS (P.Attrs _flags _fields) = let x = x in x -- todo
+prosidyJS :: Requirements f => P.Prosidy f context -> JS f
+prosidyJS =
+  \case
+    (P.Document attr body) ->
+        JsDict
+          ( kv (jsKeyString JK_Attr) (prosidyJS attr) `mapcat`
+            kv (jsKeyString JK_Body) (prosidyJS body)
+          )
+    (P.List xs) -> JsList (fmap prosidyJS xs)
+    (P.Paragraph body) ->
+        JsDict
+          ( kv (jsKeyString JK_Type) (JsString (jsKeyString JK_Paragraph)) `mapcat`
+            kv (jsKeyString JK_Body) (prosidyJS body)
+          )
+    (P.TagParagraph name attr body) ->
+        JsDict
+          ( kv (jsKeyString JK_Type) (JsString (jsKeyString JK_TagParagraph)) `mapcat`
+            kv (jsKeyString JK_TagName) (JsString name) `mapcat`
+            kv (jsKeyString JK_Attr) (prosidyJS attr) `mapcat`
+            kv (jsKeyString JK_Body) (prosidyJS body)
+          )
+    (P.TagBlock name attr body) ->
+        JsDict
+          ( kv (jsKeyString JK_Type) (JsString (jsKeyString JK_TagBlock)) `mapcat`
+            kv (jsKeyString JK_TagName) (JsString name) `mapcat`
+            kv (jsKeyString JK_Attr) (prosidyJS attr) `mapcat`
+            kv (jsKeyString JK_Body) (prosidyJS body)
+          )
+    (P.TagLiteral name attr body) ->
+        JsDict
+          ( kv (jsKeyString JK_Type) (JsString (jsKeyString JK_TagLiteral)) `mapcat`
+            kv (jsKeyString JK_TagName) (JsString name) `mapcat`
+            kv (jsKeyString JK_Attr) (prosidyJS attr) `mapcat`
+            kv (jsKeyString JK_Body) (JsString body)
+          )
+    (P.TagInline name attr body) ->
+        JsDict
+          ( kv (jsKeyString JK_Type) (JsString (jsKeyString JK_TagInline)) `mapcat`
+            kv (jsKeyString JK_TagName) (JsString name) `mapcat`
+            kv (jsKeyString JK_Attr) (prosidyJS attr) `mapcat`
+            kv (jsKeyString JK_Body) (prosidyJS body)
+          )
+    (P.StringInline x) -> JsString x
+    P.SoftBreak ->
+        JsDict
+          ( kv (jsKeyString JK_Type) (JsString (jsKeyString JK_SoftBreak))
+          )
+    (P.Attrs _flags _fields) ->
+        let x = x in x -- todo
