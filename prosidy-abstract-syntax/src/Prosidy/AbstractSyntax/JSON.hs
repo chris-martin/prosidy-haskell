@@ -1,6 +1,6 @@
 {-# OPTIONS_GHC -Wall #-}
 
-{-# LANGUAGE ConstraintKinds, DataKinds, FlexibleContexts, GADTs, KindSignatures,
+{-# LANGUAGE ConstraintKinds, DataKinds, FlexibleContexts, FunctionalDependencies, GADTs, KindSignatures, MultiParamTypeClasses,
              NoImplicitPrelude, QuantifiedConstraints, RankNTypes #-}
 
 module Prosidy.AbstractSyntax.JSON where
@@ -10,11 +10,10 @@ import Prosidy.AbstractSyntax (Foundation, String, List, Map)
 
 import Data.Functor (Functor (fmap))
 
-data JSON (f :: Foundation)
-  where
-    JsString :: String f -> JSON f
-    JsList :: List f (JSON f) -> JSON f
-    JsMap :: Map f (String f) (JSON f) -> JSON f
+data JSON (f :: Foundation) =
+    JsString (String f)
+  | JsList (List f (JSON f))
+  | JsMap (Map f (JSON f))
 
 data SpecialString = String_Attr | String_Body | String_Type
     | String_Paragraph | String_TagParagraph | String_TagName
@@ -28,13 +27,13 @@ class IsString string
 class Functor list => IsList list
   where
 
-class IsMap map
+class IsMap k map | map -> k
   where
-    kv :: k -> v -> map k v
-    mapcat :: map k v -> map k v -> map k v
+    kv :: k -> v -> map v
+    mapcat :: map v -> map v -> map v
 
 type Requirements f =
-  (IsString (String f), IsList (List f), IsMap (Map f))
+  (IsString (String f), IsList (List f), IsMap (String f) (Map f))
 
 convert_prosidy_to_JSON :: Requirements f =>
     P.Prosidy f context -> JSON f

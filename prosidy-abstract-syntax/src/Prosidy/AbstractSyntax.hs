@@ -176,10 +176,10 @@ data Prosidy (f :: Foundation) (context :: Context) where
           -- are simply removed).
 
     Attrs ::
-        Map f (String f) ()
+        Map f ()
           -- ^ Flags
       ->
-        Map f (String f) (String f)
+        Map f (String f)
           -- ^ Fields
       ->
         Prosidy f ('Context 'One 'Meta)
@@ -276,8 +276,8 @@ data Foundation =
       -- - The built-in @[]@ type
       -- - 'Data.Sequence.Seq' from the @containers@ package
       -- - 'Data.Vector.Vector' from the @vector@ package
-    (Type -> Type -> Type)
-      -- ^ Map
+    (Type -> Type)
+      -- ^ Map with string keys
       --
       -- Some reasonable options for this parameter:
       --
@@ -293,9 +293,9 @@ type family Map a where Map ('Foundation string list map) = map
 
 type BaseFoundation =
   'Foundation
-    ([] Char)             -- string
-    []                    -- list
-    (AssociationList [])  -- map
+    ([] Char)                       -- string
+    []                              -- list
+    (AssociationList [] ([] Char))  -- map
 
 newtype AssociationList list a b =
     AssociationList (list (a, b))
