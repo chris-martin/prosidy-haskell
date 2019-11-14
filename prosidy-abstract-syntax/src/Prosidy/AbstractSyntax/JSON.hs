@@ -35,65 +35,65 @@ class IsDict k map | map -> k
 type Requirements f =
   (IsString (String f), IsList (List f), IsDict (String f) (Dict f))
 
-convert_prosidy_to_JS :: Requirements f =>
+prosidyJS :: Requirements f =>
     P.Prosidy f context -> JS f
 
-convert_prosidy_to_JS (P.Document attr body) =
+prosidyJS (P.Document attr body) =
   JsDict
-    ( kv (jsKeyString JK_Attr) (convert_prosidy_to_JS attr) `mapcat`
-      kv (jsKeyString JK_Body) (convert_prosidy_to_JS body)
+    ( kv (jsKeyString JK_Attr) (prosidyJS attr) `mapcat`
+      kv (jsKeyString JK_Body) (prosidyJS body)
     )
 
-convert_prosidy_to_JS (P.List xs) =
+prosidyJS (P.List xs) =
   JsList
     (
-      fmap convert_prosidy_to_JS xs
+      fmap prosidyJS xs
     )
 
-convert_prosidy_to_JS (P.Paragraph body) =
+prosidyJS (P.Paragraph body) =
   JsDict
     ( kv (jsKeyString JK_Type) (JsString (jsKeyString JK_Paragraph)) `mapcat`
-      kv (jsKeyString JK_Body) (convert_prosidy_to_JS body)
+      kv (jsKeyString JK_Body) (prosidyJS body)
     )
 
-convert_prosidy_to_JS (P.TagParagraph name attr body) =
+prosidyJS (P.TagParagraph name attr body) =
   JsDict
     ( kv (jsKeyString JK_Type) (JsString (jsKeyString JK_TagParagraph)) `mapcat`
       kv (jsKeyString JK_TagName) (JsString name) `mapcat`
-      kv (jsKeyString JK_Attr) (convert_prosidy_to_JS attr) `mapcat`
-      kv (jsKeyString JK_Body) (convert_prosidy_to_JS body)
+      kv (jsKeyString JK_Attr) (prosidyJS attr) `mapcat`
+      kv (jsKeyString JK_Body) (prosidyJS body)
     )
 
-convert_prosidy_to_JS (P.TagBlock name attr body) =
+prosidyJS (P.TagBlock name attr body) =
   JsDict
     ( kv (jsKeyString JK_Type) (JsString (jsKeyString JK_TagBlock)) `mapcat`
       kv (jsKeyString JK_TagName) (JsString name) `mapcat`
-      kv (jsKeyString JK_Attr) (convert_prosidy_to_JS attr) `mapcat`
-      kv (jsKeyString JK_Body) (convert_prosidy_to_JS body)
+      kv (jsKeyString JK_Attr) (prosidyJS attr) `mapcat`
+      kv (jsKeyString JK_Body) (prosidyJS body)
     )
 
-convert_prosidy_to_JS (P.TagLiteral name attr body) =
+prosidyJS (P.TagLiteral name attr body) =
   JsDict
     ( kv (jsKeyString JK_Type) (JsString (jsKeyString JK_TagLiteral)) `mapcat`
       kv (jsKeyString JK_TagName) (JsString name) `mapcat`
-      kv (jsKeyString JK_Attr) (convert_prosidy_to_JS attr) `mapcat`
+      kv (jsKeyString JK_Attr) (prosidyJS attr) `mapcat`
       kv (jsKeyString JK_Body) (JsString body)
     )
 
-convert_prosidy_to_JS (P.TagInline name attr body) =
+prosidyJS (P.TagInline name attr body) =
   JsDict
     ( kv (jsKeyString JK_Type) (JsString (jsKeyString JK_TagInline)) `mapcat`
       kv (jsKeyString JK_TagName) (JsString name) `mapcat`
-      kv (jsKeyString JK_Attr) (convert_prosidy_to_JS attr) `mapcat`
-      kv (jsKeyString JK_Body) (convert_prosidy_to_JS body)
+      kv (jsKeyString JK_Attr) (prosidyJS attr) `mapcat`
+      kv (jsKeyString JK_Body) (prosidyJS body)
     )
 
-convert_prosidy_to_JS (P.StringInline x) = JsString x
+prosidyJS (P.StringInline x) = JsString x
 
-convert_prosidy_to_JS P.SoftBreak =
+prosidyJS P.SoftBreak =
   JsDict
     (
         kv (jsKeyString JK_Type) (JsString (jsKeyString JK_SoftBreak))
     )
 
-convert_prosidy_to_JS (P.Attrs _flags _fields) = let x = x in x -- todo
+prosidyJS (P.Attrs _flags _fields) = let x = x in x -- todo
