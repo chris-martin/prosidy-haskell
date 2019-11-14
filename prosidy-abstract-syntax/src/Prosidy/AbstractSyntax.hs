@@ -37,9 +37,9 @@ module Prosidy.AbstractSyntax
     Size    ( One, Many ),
     Level   ( Root, Block, Inline, Meta ),
 
-    -- * Foundation: string, list, map
+    -- * Foundation: string, list, dict
     Foundation ( Foundation ),
-    String, List, Map,
+    String, List, Dict,
     BaseFoundation,
     AssociationList ( AssociationList )
 
@@ -176,10 +176,10 @@ data Prosidy (f :: Foundation) (context :: Context) where
           -- are simply removed).
 
     Attrs ::
-        Map f ()
+        Dict f ()
           -- ^ Flags
       ->
-        Map f (String f)
+        Dict f (String f)
           -- ^ Fields
       ->
         Prosidy f ('Context 'One 'Meta)
@@ -261,41 +261,38 @@ data Size
 data Foundation =
   Foundation
     Type
-      -- ^ String
-      --
-      -- Some reasonable options for this parameter:
-      --
-      -- - 'Data.String.String' from the @base@ package
-      -- - 'Data.Text.Text' from the @text@ package
-      -- - 'Data.Text.Lazy.Text' from the @text@ package
+      -- ^ 'String'
     (Type -> Type)
-      -- ^ List
-      --
-      -- Some reasonable options for this parameter:
-      --
-      -- - The built-in @[]@ type
-      -- - 'Data.Sequence.Seq' from the @containers@ package
-      -- - 'Data.Vector.Vector' from the @vector@ package
+      -- ^ 'List'
     (Type -> Type)
-      -- ^ Map with string keys
-      --
-      -- Some reasonable options for this parameter:
-      --
-      -- - 'Data.Map.Map' from the @containers@ package
-      -- - 'Data.HashMap.HashMap' from the
-      --   @unordered-containers@ package
+      -- ^ 'Dict' (map with string keys)
 
+-- | Some reasonable options for this parameter:
+--
+-- - 'Data.String.String' from the @base@ package
+-- - 'Data.Text.Text' from the @text@ package
+-- - 'Data.Text.Lazy.Text' from the @text@ package
 type family String a where String ('Foundation string list map) = string
 
+-- | Some reasonable options for this parameter:
+--
+-- - The built-in @[]@ type
+-- - 'Data.Sequence.Seq' from the @containers@ package
+-- - 'Data.Vector.Vector' from the @vector@ package
 type family List a where List ('Foundation string list map) = list
 
-type family Map a where Map ('Foundation string list map) = map
+-- | Some reasonable options for this parameter:
+--
+-- - 'Data.Map.Map' from the @containers@ package
+-- - 'Data.HashMap.HashMap' from the
+--   @unordered-containers@ package
+type family Dict a where Dict ('Foundation string list map) = map
 
 type BaseFoundation =
   'Foundation
     ([] Char)                       -- string
     []                              -- list
-    (AssociationList [] ([] Char))  -- map
+    (AssociationList [] ([] Char))  -- dict
 
 newtype AssociationList list a b =
     AssociationList (list (a, b))

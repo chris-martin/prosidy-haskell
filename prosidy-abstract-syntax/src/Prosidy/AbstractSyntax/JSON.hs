@@ -6,14 +6,14 @@
 module Prosidy.AbstractSyntax.JSON where
 
 import qualified Prosidy.AbstractSyntax as P
-import Prosidy.AbstractSyntax (Foundation, String, List, Map)
+import Prosidy.AbstractSyntax (Foundation, String, List, Dict)
 
 import Data.Functor (Functor (fmap))
 
 data JSON (f :: Foundation) =
     JsString (String f)
   | JsList (List f (JSON f))
-  | JsMap (Map f (JSON f))
+  | JsDict (Dict f (JSON f))
 
 data SpecialString = String_Attr | String_Body | String_Type
     | String_Paragraph | String_TagParagraph | String_TagName
@@ -27,19 +27,19 @@ class IsString string
 class Functor list => IsList list
   where
 
-class IsMap k map | map -> k
+class IsDict k map | map -> k
   where
     kv :: k -> v -> map v
     mapcat :: map v -> map v -> map v
 
 type Requirements f =
-  (IsString (String f), IsList (List f), IsMap (String f) (Map f))
+  (IsString (String f), IsList (List f), IsDict (String f) (Dict f))
 
 convert_prosidy_to_JSON :: Requirements f =>
     P.Prosidy f context -> JSON f
 
 convert_prosidy_to_JSON (P.Document attr body) =
-  JsMap
+  JsDict
     ( kv (specialString String_Attr) (convert_prosidy_to_JSON attr) `mapcat`
       kv (specialString String_Body) (convert_prosidy_to_JSON body)
     )
@@ -51,13 +51,13 @@ convert_prosidy_to_JSON (P.List xs) =
     )
 
 convert_prosidy_to_JSON (P.Paragraph body) =
-  JsMap
+  JsDict
     ( kv (specialString String_Type) (JsString (specialString String_Paragraph)) `mapcat`
       kv (specialString String_Body) (convert_prosidy_to_JSON body)
     )
 
 convert_prosidy_to_JSON (P.TagParagraph name attr body) =
-  JsMap
+  JsDict
     ( kv (specialString String_Type) (JsString (specialString String_TagParagraph)) `mapcat`
       kv (specialString String_TagName) (JsString name) `mapcat`
       kv (specialString String_Attr) (convert_prosidy_to_JSON attr) `mapcat`
@@ -65,7 +65,7 @@ convert_prosidy_to_JSON (P.TagParagraph name attr body) =
     )
 
 convert_prosidy_to_JSON (P.TagBlock name attr body) =
-  JsMap
+  JsDict
     ( kv (specialString String_Type) (JsString (specialString String_TagBlock)) `mapcat`
       kv (specialString String_TagName) (JsString name) `mapcat`
       kv (specialString String_Attr) (convert_prosidy_to_JSON attr) `mapcat`
@@ -73,7 +73,7 @@ convert_prosidy_to_JSON (P.TagBlock name attr body) =
     )
 
 convert_prosidy_to_JSON (P.TagLiteral name attr body) =
-  JsMap
+  JsDict
     ( kv (specialString String_Type) (JsString (specialString String_TagLiteral)) `mapcat`
       kv (specialString String_TagName) (JsString name) `mapcat`
       kv (specialString String_Attr) (convert_prosidy_to_JSON attr) `mapcat`
@@ -81,7 +81,7 @@ convert_prosidy_to_JSON (P.TagLiteral name attr body) =
     )
 
 convert_prosidy_to_JSON (P.TagInline name attr body) =
-  JsMap
+  JsDict
     ( kv (specialString String_Type) (JsString (specialString String_TagInline)) `mapcat`
       kv (specialString String_TagName) (JsString name) `mapcat`
       kv (specialString String_Attr) (convert_prosidy_to_JSON attr) `mapcat`
@@ -91,7 +91,7 @@ convert_prosidy_to_JSON (P.TagInline name attr body) =
 convert_prosidy_to_JSON (P.StringInline x) = JsString x
 
 convert_prosidy_to_JSON P.SoftBreak =
-  JsMap
+  JsDict
     (
         kv (specialString String_Type) (JsString (specialString String_SoftBreak))
     )
