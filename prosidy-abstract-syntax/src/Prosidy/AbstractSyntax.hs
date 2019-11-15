@@ -25,6 +25,19 @@
 
 {-# LANGUAGE LambdaCase, FlexibleContexts, FlexibleInstances, FunctionalDependencies, TypeFamilies, ExplicitForAll, StandaloneDeriving, DeriveFunctor #-}
 
+{- | The /abstract syntax tree/ is comprised of the semantic components
+of a Prosidy document (the text, paragraphs, tags, etc.) without
+any of the less significant formatting details (optional whitespace,
+order of tag attributes, etc.). This is probably the representation you
+want if you are converting between document formats (e.g. Prosidy to
+HTML).
+
+If you are going to modify a Prosidy document by parsing, transforming
+the parse result, and then rendering back into the Prosidy language,
+you may want to consider using the /concrete syntax tree/
+("Prosidy.ConcreteSyntax") instead to preserve the formatting of the
+original document. -}
+
 module Prosidy.AbstractSyntax
   (
     -- * Prosidy content
