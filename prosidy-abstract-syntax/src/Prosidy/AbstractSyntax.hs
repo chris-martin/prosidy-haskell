@@ -75,7 +75,21 @@ import qualified Data.List
 
 ---  Prosidy  ---
 
--- | 'Prosidy' is the type of Prosidy content.
+{- | Abstract syntax tree for the Prosidy markup language.
+
+==== Type parameters
+
+[f]: A type of the 'Foundation' kind, specifying which types
+    are used to represent strings, lists, and dictionaries.
+    We abbreviate this tersely as @f@ because it is ubiquitous
+    but largely uninteresting.
+
+[context]: A type of the 'Context' kind (comprised of a 'Size'
+    and a 'Level') describing where this particular type of content
+    can appear within a Prosidy document. This parameter is how
+    we ensure that the tree is well-formed and that the various
+    types of content are nested appropriately; for example,
+    'Inline' elements can never contain 'Block' elements. -}
 
 data Prosidy (f :: Foundation) (context :: Context) where
 
@@ -285,11 +299,11 @@ data Size
 data Foundation =
   Foundation
     Type
-      -- ^ 'String'
+      -- ^ String
     (Type -> Type)
-      -- ^ 'List'
+      -- ^ List
     (Type -> Type)
-      -- ^ 'Dict' (map with string keys)
+      -- ^ Dict (map with string keys)
 
 -- | Some reasonable options for this parameter:
 --
