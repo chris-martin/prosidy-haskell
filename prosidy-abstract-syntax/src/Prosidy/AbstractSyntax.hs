@@ -40,29 +40,31 @@ original document. -}
 
 module Prosidy.AbstractSyntax
   (
-    -- * Prosidy content
-    Prosidy ( Document, List, Paragraph, TagParagraph,
-              TagBlock, TagLiteral, TagInline,
-              StringInline, SoftBreak, Attrs ),
-
-    -- * Content context: size and level
-    Context ( Context ),
-    Size    ( One, Many ),
-    Level   ( Root, Block, Inline, Meta ),
-
-    -- * Foundation: string, list, dict
-    Foundation ( Foundation ),
-    String, List, Dict,
-    BaseFoundation,
-    AssociationList ( AssociationList ),
-    ListBuilding ( listSingleton, listConcat ),
-    MapBuilding ( mapSingleton, mapConcat ),
-
-    -- * Conversion with JSON-like types
-    JS ( JsString, JsList, JsDict ),
-    JsKey ( .. ), JsKeyString ( .. ),
-    prosidyJS
-
+    -----------------------------------------------------------------
+    {- * The AST -}      Prosidy (
+                             Document, List, Paragraph, TagParagraph,
+                             TagBlock, TagLiteral, TagInline,
+                             StringInline, SoftBreak, Attrs
+                         ),
+    -----------------------------------------------------------------
+    {- * Context -}      Context ( Context ),
+    {- ** Size -}        Size ( One, Many ),
+    {- ** Level -}       Level ( Root, Block, Inline, Meta ),
+    -----------------------------------------------------------------
+    {- * Foundation -}   Foundation ( Foundation ),
+    {- ** String -}      String,
+    {- ** List -}        List,
+                         ListBuilding ( listSingleton, listConcat ),
+    {- ** Dict -}        Dict,
+                         MapBuilding ( mapSingleton, mapConcat ),
+    {- ** Base -}        BaseFoundation,
+                         AssociationList ( AssociationList ),
+    -----------------------------------------------------------------
+    {- * JSON -}
+    {- ** JSON AST -}    JS ( JsString, JsList, JsDict ),
+    {- ** Keys -}        JsKey ( .. ), JsKeyString ( .. ),
+    {- ** Conversion -}  prosidyJS
+    -----------------------------------------------------------------
   ) where
 
 import Data.Char (Char)
