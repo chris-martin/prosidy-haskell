@@ -342,6 +342,8 @@ class Functor dict => DictBuilding (k :: Type) (dict :: Type -> Type) | dict -> 
     dictSingleton :: k -> v -> dict v
     dictConcat :: dict v -> dict v -> dict v
 
+-- | A minimal specialization of 'Foundation' using only types available in library
+-- the @base@. This option is simple, but perhaps not the most performant choice.
 type BaseFoundation =
   'Foundation
     ([] Char)                       -- string
