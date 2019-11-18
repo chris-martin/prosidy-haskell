@@ -363,10 +363,14 @@ instance (ListBuilding list) => DictBuilding k (AssociationList list k)
 
 ---  JSON  ---
 
+{- | A fairly generic data structure that resembles an abstract syntax
+tree for JSON, minus a few aspects of JSON that are irrelevant for our
+purposes here. -}
+
 data JS (f :: Foundation) =
-    JsString (String f)
-  | JsList (List f (JS f))
-  | JsDict (Dict f (JS f))
+    JsString (String f)     -- ^ e.g. @"hello"@
+  | JsList (List f (JS f))  -- ^ e.g. @["one", "two", "three"]@
+  | JsDict (Dict f (JS f))  -- ^ e.g. @{"numeral": "4", "word": "four"}@
 
 data JsKey = JK_Attr | JK_Body | JK_Type
     | JK_Paragraph | JK_TagParagraph | JK_Tag
