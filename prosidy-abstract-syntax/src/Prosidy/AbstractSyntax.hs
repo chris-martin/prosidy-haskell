@@ -54,7 +54,7 @@ module Prosidy.AbstractSyntax
     {- ** List -}        List,
                          ListBuilding ( listSingleton, listConcat ),
     {- ** Dict -}        Dict,
-                         MapBuilding ( mapSingleton, mapConcat ),
+                         DictBuilding ( dictSingleton, dictConcat ),
     {- ** Base -}        BaseFoundation,
                          AssociationList ( AssociationList ),
     -------------------------------------------------------------------
@@ -310,21 +310,22 @@ data Foundation =
 -- - 'Data.String.String' from the @base@ package
 -- - 'Data.Text.Text' from the @text@ package
 -- - 'Data.Text.Lazy.Text' from the @text@ package
-type family String a where String ('Foundation string list map) = string
+type family String a where String ('Foundation string list dict) = string
 
 -- | Some reasonable options for this parameter:
 --
 -- - The built-in @[]@ type
 -- - 'Data.Sequence.Seq' from the @containers@ package
 -- - 'Data.Vector.Vector' from the @vector@ package
-type family List a where List ('Foundation string list map) = list
+type family List a where List ('Foundation string list dict) = list
 
 -- | Some reasonable options for this parameter:
 --
+-- - @'AssociationList' [] Data.String.String@
 -- - 'Data.Map.Map' from the @containers@ package
 -- - 'Data.HashMap.HashMap' from the
 --   @unordered-containers@ package
-type family Dict a where Dict ('Foundation string list map) = map
+type family Dict a where Dict ('Foundation string list dict) = dict
 
 class Functor list => ListBuilding (list :: Type -> Type)
   where
@@ -336,10 +337,10 @@ instance ListBuilding []
     listSingleton x = x : []
     listConcat = (Data.List.++)
 
-class Functor map => MapBuilding (k :: Type) (map :: Type -> Type) | map -> k
+class Functor dict => DictBuilding (k :: Type) (dict :: Type -> Type) | dict -> k
   where
-    mapSingleton :: k -> v -> map v
-    mapConcat :: map v -> map v -> map v
+    dictSingleton :: k -> v -> dict v
+    dictConcat :: dict v -> dict v -> dict v
 
 type BaseFoundation =
   'Foundation
@@ -352,10 +353,10 @@ newtype AssociationList list a b =
 
 deriving instance (Functor list) => Functor (AssociationList list a)
 
-instance (ListBuilding list) => MapBuilding k (AssociationList list k)
+instance (ListBuilding list) => DictBuilding k (AssociationList list k)
   where
-    mapSingleton k v = AssociationList (listSingleton (k, v))
-    mapConcat (AssociationList a) (AssociationList b) = AssociationList (listConcat a b)
+    dictSingleton k v = AssociationList (listSingleton (k, v))
+    dictConcat (AssociationList a) (AssociationList b) = AssociationList (listConcat a b)
 
 
 ---  JSON  ---
@@ -393,14 +394,14 @@ prosidyJS ::
     (
       JsKeyString (String f),
       Functor (List f),
-      MapBuilding (String f) (Dict f)
+      DictBuilding (String f) (Dict f)
     )
   =>
     Prosidy f context -> JS f
 
 prosidyJS =
-  let a + b = mapConcat a b                     ; infixl 5 +
-      k .= v = mapSingleton (jsKeyString k) v   ; infixl 6 .=
+  let a + b = dictConcat a b                     ; infixl 5 +
+      k .= v = dictSingleton (jsKeyString k) v   ; infixl 6 .=
   in \case
 
     StringInline x              -> JsString x
