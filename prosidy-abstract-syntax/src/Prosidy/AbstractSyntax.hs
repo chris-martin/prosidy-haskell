@@ -40,17 +40,15 @@ original document. -}
 
 module Prosidy.AbstractSyntax
   (
-    -----------------------------------------------------------------
-    {- * The AST -}      Prosidy (
-                             Document, List, Paragraph, TagParagraph,
-                             TagBlock, TagLiteral, TagInline,
-                             StringInline, SoftBreak, Attrs
-                         ),
-    -----------------------------------------------------------------
+    -------------------------------------------------------------------
+    -- * The AST
+    Prosidy ( Document, List, Paragraph, TagParagraph, TagBlock,
+              TagLiteral, TagInline, StringInline, SoftBreak, Attrs ),
+    -------------------------------------------------------------------
     {- * Context -}      Context ( Context ),
     {- ** Size -}        Size ( One, Many ),
     {- ** Level -}       Level ( Root, Block, Inline, Meta ),
-    -----------------------------------------------------------------
+    -------------------------------------------------------------------
     {- * Foundation -}   Foundation ( Foundation ),
     {- ** String -}      String,
     {- ** List -}        List,
@@ -59,12 +57,12 @@ module Prosidy.AbstractSyntax
                          MapBuilding ( mapSingleton, mapConcat ),
     {- ** Base -}        BaseFoundation,
                          AssociationList ( AssociationList ),
-    -----------------------------------------------------------------
-    {- * JSON -}
+    -------------------------------------------------------------------
+    -- * JSON
     {- ** JSON AST -}    JS ( JsString, JsList, JsDict ),
     {- ** Keys -}        JsKey ( .. ), JsKeyString ( .. ),
     {- ** Conversion -}  prosidyJS
-    -----------------------------------------------------------------
+    -------------------------------------------------------------------
   ) where
 
 import Data.Char (Char)
