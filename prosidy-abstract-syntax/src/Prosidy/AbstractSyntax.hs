@@ -28,7 +28,7 @@
        even from the base package. Disabling the implicit import
        of the Prelude module makes this more clear. -}
 
-{-# LANGUAGE LambdaCase, FlexibleContexts, FlexibleInstances, FunctionalDependencies, TypeFamilies, ExplicitForAll, StandaloneDeriving, DeriveFunctor #-}
+{-# LANGUAGE LambdaCase, FlexibleContexts, FlexibleInstances, FunctionalDependencies, TypeFamilies, ExplicitForAll, StandaloneDeriving, DeriveFunctor, TypeApplications, ScopedTypeVariables, QuantifiedConstraints #-}
 
 {- | The /abstract syntax tree/ is comprised of the semantic components
 of a Prosidy document (the text, paragraphs, tags, etc.) without
@@ -60,6 +60,7 @@ module Prosidy.AbstractSyntax
                          ListBuilding ( listSingleton, listConcat ),
     {- ** Dict -}        Dict,
                          DictBuilding ( dictSingleton, dictConcat ),
+    {- ** ... -}         ListOfDictKeys ( listOfDictKeys ),
     {- ** Base -}        BaseFoundation,
                          AssociationList ( AssociationList ),
     -------------------------------------------------------------------
@@ -71,11 +72,23 @@ module Prosidy.AbstractSyntax
   ) where
 
 import Data.Char (Char)
+import Data.Eq (Eq)
 import Data.Function (($))
-import Data.Functor (Functor (fmap))
-import Data.Kind (Type)
-
 import qualified Data.List
+
+-- Things related to type-level programming
+import Data.Kind (Type)
+import Data.Proxy (Proxy (Proxy))
+
+-- Functors
+import Data.Functor (Functor (fmap))
+import qualified Control.Applicative
+import Control.Applicative (Applicative)
+
+-- Numbers
+import Data.Ratio (Rational)
+import Numeric.Natural (Natural)
+import Prelude (Integer)
 
 
 ---  Prosidy  ---
@@ -347,6 +360,10 @@ class Functor dict => DictBuilding (k :: Type) (dict :: Type -> Type) | dict -> 
     dictSingleton :: k -> v -> dict v
     dictConcat :: dict v -> dict v -> dict v
 
+class ListOfDictKeys (f :: Foundation)
+  where
+    listOfDictKeys :: Proxy f -> Dict f v -> List f (String f)
+
 -- | A minimal specialization of 'Foundation' using only types available in library
 -- the @base@. This option is simple, but perhaps not the most performant choice.
 type BaseFoundation =
@@ -377,10 +394,18 @@ data JS (f :: Foundation) =
   | JsList (List f (JS f))  -- ^ e.g. @["one", "two", "three"]@
   | JsDict (Dict f (JS f))  -- ^ e.g. @{"numeral": "4", "word": "four"}@
 
+deriving instance
+  (
+      Eq string,
+      forall a. Eq a => Eq (list a),
+      forall a. Eq a => Eq (dict a)
+  )
+  => Eq (JS ('Foundation string list dict))
+
 data JsKey = JK_Attr | JK_Body | JK_Type
     | JK_Paragraph | JK_TagParagraph | JK_Tag
     | JK_TagBlock | JK_TagLiteral | JK_TagInline
-    | JK_SoftBreak
+    | JK_SoftBreak | JK_Flags | JK_Fields
 
 class JsKeyString (string :: Type)
   where
@@ -400,12 +425,15 @@ instance JsKeyString ([] Char)
         JK_TagLiteral   -> "tagLiteral"
         JK_TagInline    -> "tagInline"
         JK_SoftBreak    -> "softBreak"
+        JK_Flags        -> "flags"
+        JK_Fields       -> "fields"
 
-prosidyJS ::
+prosidyJS :: forall (f :: Foundation) (context :: Context).
     (
       JsKeyString (String f),
       Functor (List f),
-      DictBuilding (String f) (Dict f)
+      DictBuilding (String f) (Dict f),
+      ListOfDictKeys f
     )
   =>
     Prosidy f context -> JS f
@@ -413,38 +441,62 @@ prosidyJS ::
 prosidyJS =
   let a + b = dictConcat a b                     ; infixl 5 +
       k .= v = dictSingleton (jsKeyString k) v   ; infixl 6 .=
+      f = Proxy @f
   in \case
 
     StringInline x              -> JsString x
 
     List xs                     -> JsList $ fmap prosidyJS xs
 
-    Document attr body          -> JsDict $ JK_Attr .= prosidyJS attr
-                                          + JK_Body .= prosidyJS body
+    Document attr body          -> JsDict $ JK_Attr   .= prosidyJS attr
+                                          + JK_Body   .= prosidyJS body
 
-    Paragraph body              -> JsDict $ JK_Type .= JsString (jsKeyString JK_Paragraph)
-                                          + JK_Body .= prosidyJS body
+    Paragraph body              -> JsDict $ JK_Type   .= JsString (jsKeyString JK_Paragraph)
+                                          + JK_Body   .= prosidyJS body
 
-    TagParagraph name attr body -> JsDict $ JK_Type .= JsString (jsKeyString JK_TagParagraph)
-                                          + JK_Tag  .= JsString name
-                                          + JK_Attr .= prosidyJS attr
-                                          + JK_Body .= prosidyJS body
+    TagParagraph name attr body -> JsDict $ JK_Type   .= JsString (jsKeyString JK_TagParagraph)
+                                          + JK_Tag    .= JsString name
+                                          + JK_Attr   .= prosidyJS attr
+                                          + JK_Body   .= prosidyJS body
 
-    TagBlock name attr body     -> JsDict $ JK_Type .= JsString (jsKeyString JK_TagBlock)
-                                          + JK_Tag  .= JsString name
-                                          + JK_Attr .= prosidyJS attr
-                                          + JK_Body .= prosidyJS body
+    TagBlock name attr body     -> JsDict $ JK_Type   .= JsString (jsKeyString JK_TagBlock)
+                                          + JK_Tag    .= JsString name
+                                          + JK_Attr   .= prosidyJS attr
+                                          + JK_Body   .= prosidyJS body
 
-    TagLiteral name attr body   -> JsDict $ JK_Type .= JsString (jsKeyString JK_TagLiteral)
-                                          + JK_Tag  .= JsString name
-                                          + JK_Attr .= prosidyJS attr
-                                          + JK_Body .= JsString body
+    TagLiteral name attr body   -> JsDict $ JK_Type   .= JsString (jsKeyString JK_TagLiteral)
+                                          + JK_Tag    .= JsString name
+                                          + JK_Attr   .= prosidyJS attr
+                                          + JK_Body   .= JsString body
 
-    TagInline name attr body    -> JsDict $ JK_Type .= JsString (jsKeyString JK_TagInline)
-                                          + JK_Tag  .= JsString name
-                                          + JK_Attr .= prosidyJS attr
-                                          + JK_Body .= prosidyJS body
+    TagInline name attr body    -> JsDict $ JK_Type   .= JsString (jsKeyString JK_TagInline)
+                                          + JK_Tag    .= JsString name
+                                          + JK_Attr   .= prosidyJS attr
+                                          + JK_Body   .= prosidyJS body
 
-    SoftBreak                   -> JsDict $ JK_Type .= JsString (jsKeyString JK_SoftBreak)
+    SoftBreak                   -> JsDict $ JK_Type   .= JsString (jsKeyString JK_SoftBreak)
 
-    Attrs _flags _fields        -> let x = x in x -- todo
+    Attrs flags fields          -> JsDict $ JK_Flags  .= JsList (fmap JsString (listOfDictKeys f flags))
+                                          + JK_Fields .= JsDict (fmap JsString fields)
+
+
+---  Generation  ---
+
+data ShrinkTree a = ShrinkTree a [ShrinkTree a]
+
+data ProsidyGenOption (context :: Context) a
+  where
+
+    GenMaxTotalBlocks :: ProsidyGenOption ('Context 'One 'Root) Natural
+      -- ^ The maximum number of blocks within a document, including
+      -- blocks that are nested within other blocks.
+
+    GenMaxBlockDepth :: ProsidyGenOption ('Context 'One 'Root) Natural
+      -- ^ The maximum depth of a block. A top-level block has depth 1;
+      -- a block within a 'TagBlock' of depth *n* has depth *n+1*.
+
+prosidyGenDefault :: ProsidyGenOption context a -> a
+prosidyGenDefault =
+  \case
+    GenMaxTotalBlocks -> 20
+    GenMaxBlockDepth -> 4
