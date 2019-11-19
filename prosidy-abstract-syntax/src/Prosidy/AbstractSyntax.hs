@@ -1,6 +1,11 @@
 {-# OPTIONS_GHC -Wall #-}
     {- All GHC warnings are enabled. -}
 
+{-# OPTIONS_GHC -fno-warn-unused-imports -fno-warn-unused-top-binds
+                -fdefer-typed-holes -fno-warn-typed-holes #-}
+    {- These are temporary warning suppressions while this module
+       undergoes heavily development. (todo: remove this pragma) -}
+
 {-# LANGUAGE GADTs #-}
     {- The 'Prosidy' type is a GADT; its data constructors have
        different type parameters than the 'Prosidy' type itself.
