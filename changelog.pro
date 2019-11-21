@@ -1,4 +1,4 @@
-title: Changelog for prosidy-concrete-syntax
+title: Changelog for prosidy
 ---
 
 #-section{Unreleased changes}
