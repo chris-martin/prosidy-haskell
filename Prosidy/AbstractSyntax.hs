@@ -28,7 +28,7 @@
        even from the base package. Disabling the implicit import
        of the Prelude module makes this more clear. -}
 
-{-# LANGUAGE LambdaCase, FlexibleContexts, FlexibleInstances, FunctionalDependencies, TypeFamilies, ExplicitForAll, StandaloneDeriving, DeriveFunctor, TypeApplications, ScopedTypeVariables, QuantifiedConstraints #-}
+{-# LANGUAGE LambdaCase, FlexibleContexts, FlexibleInstances, FunctionalDependencies, TypeFamilies, ExplicitForAll, StandaloneDeriving, DeriveFunctor, TypeApplications, ScopedTypeVariables, QuantifiedConstraints, RankNTypes #-}
 
 {- | The /abstract syntax tree/ is comprised of the semantic components
 of a Prosidy document (the text, paragraphs, tags, etc.) without
@@ -73,8 +73,9 @@ module Prosidy.AbstractSyntax
 
 import Data.Char (Char)
 import Data.Eq (Eq)
-import Data.Function (($))
+import Data.Function (($), fix)
 import qualified Data.List
+import System.IO (IO)
 
 -- Things related to type-level programming
 import Data.Kind (Type)
@@ -83,10 +84,12 @@ import Data.Proxy (Proxy (Proxy))
 -- Functors
 import Data.Functor (Functor (fmap))
 import qualified Control.Applicative
-import Control.Applicative (Applicative)
+import Control.Applicative (Applicative (pure))
+import Control.Monad (Monad ((>>=)))
 
 -- Numbers
 import Data.Ratio (Rational)
+import Data.Word (Word8, Word64)
 import Numeric.Natural (Natural)
 import Prelude (Integer)
 
@@ -482,21 +485,52 @@ prosidyJS =
 
 ---  Generation  ---
 
-data ShrinkTree a = ShrinkTree a [ShrinkTree a]
+data Gen entropy a =
+      GenAwait (entropy -> Gen entropy a)
+    | GenYield a (Gen entropy a)
+    deriving Functor
 
-data ProsidyGenOption (context :: Context) a
+-- | A generator that ignores its entropy and always yields the same fixed value.
+genConst :: a -> Gen entropy a
+genConst x = fix (GenYield x)
+
+-- | A generator that simply yields its entropy values unmodified.
+genId :: Gen a a
+genId = fix (\g -> GenAwait (\e -> GenYield e g))
+
+-- | Function application within the 'Gen' context.
+genAp :: Gen entropy (a -> b) -> Gen entropy a -> Gen entropy b
+genAp (GenYield f genF) (GenYield x genX) = GenYield (f x) (genAp genF genX)
+genAp (GenAwait toGenF) genX = GenAwait (\e -> let genF = toGenF e in genAp genF genX)
+genAp genF (GenAwait toGenX) = GenAwait (\e -> let genX = toGenX e in genAp genF genX)
+
+genDocument :: (context ~ ('Context 'One 'Root)) =>
+    GenOptions context -> Gen entropy (Prosidy f context)
+genDocument _ = _
+
+genBlock :: (context ~ ('Context 'One 'Block)) =>
+    GenOptions context -> Gen entropy (Prosidy f context)
+genBlock _ = _
+
+genInline :: (context ~ ('Context 'One 'Inline)) =>
+    GenOptions context -> Gen entropy (Prosidy f context)
+genInline _ = _
+
+type GenOptions context = forall a. GenOption context a -> a
+
+data GenOption (context :: Context) a
   where
 
-    GenMaxTotalBlocks :: ProsidyGenOption ('Context 'One 'Root) Natural
+    GenMaxTotalBlocks :: GenOption ('Context 'One 'Root) Natural
       -- ^ The maximum number of blocks within a document, including
       -- blocks that are nested within other blocks.
 
-    GenMaxBlockDepth :: ProsidyGenOption ('Context 'One 'Root) Natural
+    GenMaxBlockDepth :: GenOption ('Context 'One 'Root) Natural
       -- ^ The maximum depth of a block. A top-level block has depth 1;
       -- a block within a 'TagBlock' of depth *n* has depth *n+1*.
 
-prosidyGenDefault :: ProsidyGenOption context a -> a
-prosidyGenDefault =
+genDefault :: GenOption context a -> a
+genDefault =
   \case
     GenMaxTotalBlocks -> 20
     GenMaxBlockDepth -> 4
