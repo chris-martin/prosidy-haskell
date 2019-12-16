@@ -72,6 +72,7 @@ module Prosidy.AbstractSyntax
   ) where
 
 import Data.Char (Char)
+import qualified Data.Char as Char
 import Data.Eq (Eq)
 import Data.Function (($), fix)
 import qualified Data.List
@@ -88,10 +89,12 @@ import Control.Applicative (Applicative (pure))
 import Control.Monad (Monad ((>>=)))
 
 -- Numbers
+import Data.Int (Int)
 import Data.Ratio (Rational)
 import Data.Word (Word8, Word64)
 import Numeric.Natural (Natural)
 import Prelude (Integer)
+import qualified Prelude
 
 
 ---  Prosidy  ---
@@ -510,6 +513,17 @@ genCompose :: Gen a b -> Gen b c -> Gen a c
 genCompose f (GenYield c g) = GenYield c (genCompose f g)
 genCompose (GenYield b f) (GenAwait toC) = genCompose f (toC b)
 genCompose (GenAwait toB) g = GenAwait (\a -> genCompose (toB a) g)
+
+genWord8AsciiPrint :: Gen Word8 Char
+genWord8AsciiPrint =
+    fix (\g -> GenAwait (\b -> let c = word8Char b in
+        if Char.isPrint c then GenYield c g else g))
+
+word8Int :: Word8 -> Int
+word8Int = Prelude.fromIntegral
+
+word8Char :: Word8 -> Char
+word8Char b = Char.chr (word8Int b)
 
 genDocument :: (context ~ ('Context 'One 'Root)) =>
     GenOptions context -> Gen entropy (Prosidy f context)
