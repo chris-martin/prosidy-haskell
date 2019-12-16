@@ -28,7 +28,7 @@
        even from the base package. Disabling the implicit import
        of the Prelude module makes this more clear. -}
 
-{-# LANGUAGE LambdaCase, FlexibleContexts, FlexibleInstances, FunctionalDependencies, TypeFamilies, ExplicitForAll, StandaloneDeriving, DeriveFunctor, TypeApplications, ScopedTypeVariables, QuantifiedConstraints, RankNTypes #-}
+{-# LANGUAGE LambdaCase, FlexibleContexts, FlexibleInstances, FunctionalDependencies, TypeFamilies, ExplicitForAll, StandaloneDeriving, DeriveFunctor, TypeApplications, ScopedTypeVariables, QuantifiedConstraints, RankNTypes, LiberalTypeSynonyms, UndecidableInstances #-}
 
 {- | The /abstract syntax tree/ is comprised of the semantic components
 of a Prosidy document (the text, paragraphs, tags, etc.) without
@@ -73,10 +73,12 @@ module Prosidy.AbstractSyntax
 
 import Data.Char (Char)
 import qualified Data.Char as Char
+import qualified Data.Either as Either
 import Data.Eq (Eq)
 import Data.Function (($), fix)
 import qualified Data.List
 import System.IO (IO)
+import Optics
 
 -- Things related to type-level programming
 import Data.Kind (Type)
@@ -361,6 +363,10 @@ instance ListBuilding []
     listSingleton x = x : []
     listConcat = (Data.List.++)
 
+class ListTraversal list
+  where
+    listTraversal :: Traversal' (list a) a
+
 class Functor dict => DictBuilding (k :: Type) (dict :: Type -> Type) | dict -> k
   where
     dictSingleton :: k -> v -> dict v
@@ -387,6 +393,43 @@ instance (ListBuilding list) => DictBuilding k (AssociationList list k)
   where
     dictSingleton k v = AssociationList (listSingleton (k, v))
     dictConcat (AssociationList a) (AssociationList b) = AssociationList (listConcat a b)
+
+
+---  Optics  ---
+
+documentHeadLens :: Lens' (Prosidy f ('Context 'One 'Root)) (Prosidy f ('Context 'One 'Meta))
+documentHeadLens = lens (\(Document head _) -> head) (\(Document _ body) head -> Document head body)
+
+documentBodyLens :: Lens' (Prosidy f ('Context 'One 'Root)) (Prosidy f ('Context 'Many 'Block))
+documentBodyLens = lens (\(Document _ body) -> body) (\(Document head _) body -> Document head body)
+
+prosidyListIso :: Iso' (Prosidy f ('Context 'Many l)) (List f (Prosidy f ('Context 'One l)))
+prosidyListIso = iso (\(List x) -> x) List
+
+prosidyListTraversal :: ListTraversal (List f) => Traversal' (Prosidy f ('Context 'Many l)) (Prosidy f ('Context 'One l))
+prosidyListTraversal = prosidyListIso % listTraversal
+
+class IsContext size level
+  where
+    documentTraversal :: Traversal' (Prosidy f ('Context size level)) (Prosidy f ('Context 'One 'Root))
+    blockTraversal :: ListTraversal (List f) => Traversal' (Prosidy f ('Context size level)) (Prosidy f ('Context 'One 'Block))
+
+instance IsContext 'One 'Root
+  where
+    documentTraversal = castOptic simple
+    blockTraversal = documentBodyLens % blockTraversal
+
+instance IsContext 'One 'Block
+  where
+    documentTraversal = nilTraversal
+
+instance (IsContext 'One l) => IsContext 'Many l
+  where
+    documentTraversal = nilTraversal
+    blockTraversal = prosidyListTraversal % blockTraversal
+
+nilTraversal :: Optic A_Traversal NoIx t t a b
+nilTraversal = castOptic (atraversal Either.Left (\x _ -> x))
 
 
 ---  JSON  ---
