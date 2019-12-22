@@ -23,8 +23,6 @@ common all
     -- work with `base` version 4.13 or greater.
     build-depends:  base < 4.13
 
-    build-depends: optics
-
 library abstract-syntax
     import: all
     visibility: public

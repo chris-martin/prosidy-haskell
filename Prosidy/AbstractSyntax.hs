@@ -28,7 +28,7 @@
        even from the base package. Disabling the implicit import
        of the Prelude module makes this more clear. -}
 
-{-# LANGUAGE LambdaCase, FlexibleContexts, FlexibleInstances, FunctionalDependencies, TypeFamilies, ExplicitForAll, StandaloneDeriving, DeriveFunctor, TypeApplications, ScopedTypeVariables, QuantifiedConstraints, RankNTypes, LiberalTypeSynonyms, UndecidableInstances #-}
+{-# LANGUAGE LambdaCase, FlexibleContexts, FlexibleInstances, FunctionalDependencies, TypeFamilies, ExplicitForAll, StandaloneDeriving, DeriveFunctor, TypeApplications, ScopedTypeVariables, QuantifiedConstraints, RankNTypes, LiberalTypeSynonyms, UndecidableInstances, ApplicativeDo #-}
 
 {- | The /abstract syntax tree/ is comprised of the semantic components
 of a Prosidy document (the text, paragraphs, tags, etc.) without
@@ -73,12 +73,18 @@ module Prosidy.AbstractSyntax
 
 import Data.Char (Char)
 import qualified Data.Char as Char
-import qualified Data.Either as Either
 import Data.Eq (Eq)
 import Data.Function (($), fix)
 import qualified Data.List
 import System.IO (IO)
-import Optics
+
+-- Either
+import Data.Either (Either)
+import qualified Data.Either as Either
+
+-- Maybe
+import Data.Maybe (Maybe)
+import qualified Data.Maybe as Maybe
 
 -- Things related to type-level programming
 import Data.Kind (Type)
@@ -88,7 +94,7 @@ import Data.Proxy (Proxy (Proxy))
 import Data.Functor (Functor (fmap))
 import qualified Control.Applicative
 import Control.Applicative (Applicative (pure))
-import Control.Monad (Monad ((>>=)))
+import Control.Monad (Monad ((>>=), return))
 
 -- Numbers
 import Data.Int (Int)
@@ -365,7 +371,7 @@ instance ListBuilding []
 
 class ListTraversal list
   where
-    listTraversal :: Traversal' (list a) a
+    listTraversal :: Traversal (list a) (list b) a b
 
 class Functor dict => DictBuilding (k :: Type) (dict :: Type -> Type) | dict -> k
   where
@@ -395,41 +401,92 @@ instance (ListBuilding list) => DictBuilding k (AssociationList list k)
     dictConcat (AssociationList a) (AssociationList b) = AssociationList (listConcat a b)
 
 
----  Optics  ---
+---  Isos  ---
 
-documentHeadLens :: Lens' (Prosidy f ('Context 'One 'Root)) (Prosidy f ('Context 'One 'Meta))
-documentHeadLens = lens (\(Document head _) -> head) (\(Document _ body) head -> Document head body)
-
-documentBodyLens :: Lens' (Prosidy f ('Context 'One 'Root)) (Prosidy f ('Context 'Many 'Block))
-documentBodyLens = lens (\(Document _ body) -> body) (\(Document head _) body -> Document head body)
+type Iso s t a b = (s -> a, b -> t)
+type Iso' s a = (s -> a, a -> s)
 
 prosidyListIso :: Iso' (Prosidy f ('Context 'Many l)) (List f (Prosidy f ('Context 'One l)))
-prosidyListIso = iso (\(List x) -> x) List
+prosidyListIso = (\(List x) -> x, List)
+
+
+---  Lenses  ---
+
+type Lens s t a b = (s -> a, s -> b -> t)
+type Lens' s a = (s -> a, s -> a -> s)
+
+documentHeadLens :: Lens' (Prosidy f ('Context 'One 'Root)) (Prosidy f ('Context 'One 'Meta))
+documentHeadLens = (\(Document head _) -> head, \(Document _ body) head -> Document head body)
+
+documentBodyLens :: Lens' (Prosidy f ('Context 'One 'Root)) (Prosidy f ('Context 'Many 'Block))
+documentBodyLens = (\(Document _ body) -> body, \(Document head _) body -> Document head body)
+
+
+---  Prisms  ---
+
+type Prism s t a b = (s -> Either t a, b -> t)
+type Prism' s a = (s -> Maybe a, a -> s)
+
+
+---  Traversals  ---
+
+type Traversal s t a b = forall f. (Applicative f) => (a -> f b) -> s -> f t
+type Traversal' s a = Traversal s s a a
+
+isoTraversal :: forall s t u v a b. Iso s t u v -> Traversal u v a b -> Traversal s t a b
+isoTraversal (convert, convertBack) traverse action (s :: s) =
+  do
+    (v :: v) <- traverse action (convert s :: u)
+    return (convertBack v :: t)
+
+lensTraversal :: forall s t u v a b. Lens s t u v -> Traversal u v a b -> Traversal s t a b
+lensTraversal (getPart, reassemble) traverse action (s :: s) =
+  do
+    (v :: v) <- traverse action (getPart s :: u)
+    return (reassemble s v :: t)
+
+traversalTraversal :: forall s t u v a b. Traversal s t u v -> Traversal u v a b -> Traversal s t a b
+traversalTraversal traverse1 traverse2 action (s :: s) = traverse1 (traverse2 action) s
+
+nilTraversal :: Traversal s s a b
+nilTraversal _ s = pure s
+
+idTraversal :: Traversal' s s
+idTraversal f s = f s
 
 prosidyListTraversal :: ListTraversal (List f) => Traversal' (Prosidy f ('Context 'Many l)) (Prosidy f ('Context 'One l))
-prosidyListTraversal = prosidyListIso % listTraversal
+prosidyListTraversal = prosidyListIso `isoTraversal` listTraversal
 
-class IsContext size level
+data TreeTraversalDirection = TopDown | BottomUp
+
+data TreeTraversalInclusion = TraverseAll | TraverseDescendants
+
+data TreeTraversalType =
+    TraverseChildren
+  | TraverseRecursive TreeTraversalInclusion TreeTraversalDirection
+
+class ProsidyTraversals size level
   where
     documentTraversal :: Traversal' (Prosidy f ('Context size level)) (Prosidy f ('Context 'One 'Root))
-    blockTraversal :: ListTraversal (List f) => Traversal' (Prosidy f ('Context size level)) (Prosidy f ('Context 'One 'Block))
+    blockTreeTraversal :: ListTraversal (List f) => TreeTraversalType -> Traversal' (Prosidy f ('Context size level)) (Prosidy f ('Context 'One 'Block))
 
-instance IsContext 'One 'Root
+instance ProsidyTraversals 'One 'Root
   where
-    documentTraversal = castOptic simple
-    blockTraversal = documentBodyLens % blockTraversal
+    documentTraversal = idTraversal
+    blockTreeTraversal ttt = documentBodyLens `lensTraversal` blockTreeTraversal ttt
 
-instance IsContext 'One 'Block
-  where
-    documentTraversal = nilTraversal
-
-instance (IsContext 'One l) => IsContext 'Many l
+instance ProsidyTraversals 'One 'Block
   where
     documentTraversal = nilTraversal
-    blockTraversal = prosidyListTraversal % blockTraversal
+    blockTreeTraversal (TraverseRecursive TraverseAll TopDown) action block =
+      do
+        block' <- action block
+        return _____
 
-nilTraversal :: Optic A_Traversal NoIx t t a b
-nilTraversal = castOptic (atraversal Either.Left (\x _ -> x))
+instance (ProsidyTraversals 'One l) => ProsidyTraversals 'Many l
+  where
+    documentTraversal = nilTraversal
+    blockTreeTraversal ttt = prosidyListTraversal `traversalTraversal` blockTreeTraversal ttt
 
 
 ---  JSON  ---
