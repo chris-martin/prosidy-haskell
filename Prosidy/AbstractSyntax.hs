@@ -68,12 +68,18 @@ module Prosidy.AbstractSyntax
     {- ** Isomorphism -} Iso, Iso', overIso, viewIso, viewIso',
     {- ** Lens -}        Lens, Lens',
     {- ** Prism -}       Prism, Prism',
-    {- ** Walk -}        Walk, Walk', nilWalk, idWalk,
+    {- ** Walk -}        Walk, Walk', nilWalk, idWalk, isoWalk,
+                         lensWalk, walkWalk,
     -------------------------------------------------------------------
-    {- * Fun with AST -} documentHeadLens,
+    {- * Fun with AST -} documentHeadLens, documentBodyLens,
+                         prosidyListIso,
     -------------------------------------------------------------------
     {- * AST walking -}  InlineDirection ( LeftToRight, RightToLeft ),
                          BlockDirection ( TopToBottom, BottomToTop ),
+                         TreeDirection ( RootToLeaf, LeafToRoot ),
+                         prosidyListWalk, blockChildrenWalk,
+                         eachBlockChild, blockListDirectionIso,
+                         BlockWalk ( blockWalk ),
     -------------------------------------------------------------------
     {- * JSON -}
     {- ** JSON AST -}    JS ( JsString, JsList, JsDict ),
