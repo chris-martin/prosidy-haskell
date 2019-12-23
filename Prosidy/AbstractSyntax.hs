@@ -1,7 +1,7 @@
 {-# OPTIONS_GHC -Wall #-}
     {- All GHC warnings are enabled. -}
 
-{-# OPTIONS_GHC -fno-warn-unused-imports -fno-warn-unused-top-binds
+{-# OPTIONS_GHC -fno-warn-unused-imports
                 -fdefer-typed-holes -fno-warn-typed-holes #-}
     {- These are temporary warning suppressions while this module
        undergoes heavily development. (todo: remove this pragma) -}
@@ -64,10 +64,25 @@ module Prosidy.AbstractSyntax
     {- ** Base -}        BaseFoundation,
                          AssociationList ( AssociationList ),
     -------------------------------------------------------------------
-    -- * JSON
+    {- * Abstract -}
+    {- ** Isomorphism -} Iso, Iso', overIso, viewIso, viewIso',
+    {- ** Lens -}        Lens, Lens',
+    {- ** Prism -}       Prism, Prism',
+    {- ** Walk -}        Walk, Walk', nilWalk, idWalk,
+    -------------------------------------------------------------------
+    {- * Fun with AST -} documentHeadLens,
+    -------------------------------------------------------------------
+    {- * AST walking -}  InlineDirection ( LeftToRight, RightToLeft ),
+                         BlockDirection ( TopToBottom, BottomToTop ),
+    -------------------------------------------------------------------
+    {- * JSON -}
     {- ** JSON AST -}    JS ( JsString, JsList, JsDict ),
     {- ** Keys -}        JsKey ( .. ), JsKeyString ( .. ),
-    {- ** Conversion -}  prosidyJS
+    {- ** Conversion -}  prosidyJS,
+    -------------------------------------------------------------------
+    {- * Random gen -}   genConst, genId, genAp, genCompose,
+                         genWord8AsciiPrint, genDocument, genBlock,
+                         genInline, GenOption ( .. ), genDefault
     -------------------------------------------------------------------
   ) where
 
@@ -423,25 +438,19 @@ viewIso' :: Iso' s a -> s -> a
 viewIso' (f, _) = f
 
 
----  Lenses  ---
+---  Lens concept  ---
 
 type Lens s t a b = (s -> a, s -> b -> t)
 type Lens' s a = (s -> a, s -> a -> s)
 
-documentHeadLens :: Lens' (Prosidy f ('Context 'One 'Root)) (Prosidy f ('Context 'One 'Meta))
-documentHeadLens = (\(Document head _) -> head, \(Document _ body) head -> Document head body)
 
-documentBodyLens :: Lens' (Prosidy f ('Context 'One 'Root)) (Prosidy f ('Context 'Many 'Block))
-documentBodyLens = (\(Document _ body) -> body, \(Document head _) body -> Document head body)
-
-
----  Prisms  ---
+---  Prism concept  ---
 
 type Prism s t a b = (s -> Either t a, b -> t)
 type Prism' s a = (s -> Maybe a, a -> s)
 
 
----  Walks  ---
+---  Walk concept  ---
 
 type Walk s t a b = forall f. (Monad f) => (a -> f b) -> s -> f t
 type Walk' s a = Walk s s a a
@@ -467,8 +476,26 @@ nilWalk _ s = pure s
 idWalk :: Walk' s s
 idWalk f s = f s
 
+
+---  Various basic AST manipulations  ---
+
+documentHeadLens :: Lens' (Prosidy f ('Context 'One 'Root)) (Prosidy f ('Context 'One 'Meta))
+documentHeadLens = (\(Document head _) -> head, \(Document _ body) head -> Document head body)
+
+documentBodyLens :: Lens' (Prosidy f ('Context 'One 'Root)) (Prosidy f ('Context 'Many 'Block))
+documentBodyLens = (\(Document _ body) -> body, \(Document head _) body -> Document head body)
+
 prosidyListIso :: Iso' (Prosidy f ('Context 'Many l)) (List f (Prosidy f ('Context 'One l)))
 prosidyListIso = (\(List x) -> x, List)
+
+
+---  Walking around in the AST  ---
+
+data TreeDirection = RootToLeaf | LeafToRoot
+
+data BlockDirection = TopToBottom | BottomToTop
+
+data InlineDirection = LeftToRight | RightToLeft
 
 prosidyListWalk :: ListWalk (List f) => ListDirection -> Walk' (Prosidy f ('Context 'Many l)) (Prosidy f ('Context 'One l))
 prosidyListWalk direction = prosidyListIso `isoWalk` listWalk direction
@@ -481,10 +508,6 @@ blockChildrenWalk action block =
 
 eachBlockChild :: ListWalk (List f) => BlockDirection -> Walk' (Prosidy f ('Context 'One 'Block)) (Prosidy f ('Context 'One 'Block))
 eachBlockChild blockDirection = blockChildrenWalk `walkWalk` prosidyListWalk (viewIso' blockListDirectionIso blockDirection)
-
-data TreeDirection = RootToLeaf | LeafToRoot
-data BlockDirection = TopToBottom | BottomToTop
-data InlineDirection = LeftToRight | RightToLeft
 
 blockListDirectionIso :: Iso' BlockDirection ListDirection
 blockListDirectionIso = (\case TopToBottom -> ListForward; BottomToTop -> ListBackward, \case ListForward -> TopToBottom; ListBackward -> BottomToTop)
