@@ -74,7 +74,7 @@ module Prosidy.AbstractSyntax
 import Data.Char (Char)
 import qualified Data.Char as Char
 import Data.Eq (Eq)
-import Data.Function (($), fix)
+import Data.Function (($), fix, id)
 import qualified Data.List as List
 import System.IO (IO)
 
@@ -408,16 +408,13 @@ instance (ListBuilding list) => DictBuilding k (AssociationList list k)
     dictConcat (AssociationList a) (AssociationList b) = AssociationList (listConcat a b)
 
 
----  Isos  ---
+---  Isomorphism concept  ---
 
 type Iso s t a b = (s -> a, b -> t)
 type Iso' s a = (s -> a, a -> s)
 
-prosidyListIso :: Iso' (Prosidy f ('Context 'Many l)) (List f (Prosidy f ('Context 'One l)))
-prosidyListIso = (\(List x) -> x, List)
-
-blockListDirectionIso :: Iso' BlockDirection ListDirection
-blockListDirectionIso = (\case TopToBottom -> ListForward; BottomToTop -> ListBackward, \case ListForward -> TopToBottom; ListBackward -> BottomToTop)
+overIso :: Iso s t a b -> (a -> b) -> (s -> t)
+overIso (f, g) h x = g (h (f x))
 
 viewIso :: Iso s t a b -> s -> a
 viewIso (f, _) = f
@@ -470,6 +467,9 @@ nilTraversal _ s = pure s
 idTraversal :: Traversal' s s
 idTraversal f s = f s
 
+prosidyListIso :: Iso' (Prosidy f ('Context 'Many l)) (List f (Prosidy f ('Context 'One l)))
+prosidyListIso = (\(List x) -> x, List)
+
 prosidyListTraversal :: ListTraversal (List f) => ListDirection -> Traversal' (Prosidy f ('Context 'Many l)) (Prosidy f ('Context 'One l))
 prosidyListTraversal direction = prosidyListIso `isoTraversal` listTraversal direction
 
@@ -485,6 +485,9 @@ eachBlockChild blockDirection = blockChildrenTraversal `traversalTraversal` pros
 data TreeDirection = RootToLeaf | LeafToRoot
 data BlockDirection = TopToBottom | BottomToTop
 data InlineDirection = LeftToRight | RightToLeft
+
+blockListDirectionIso :: Iso' BlockDirection ListDirection
+blockListDirectionIso = (\case TopToBottom -> ListForward; BottomToTop -> ListBackward, \case ListForward -> TopToBottom; ListBackward -> BottomToTop)
 
 class BlockTreeTraversal size level
   where
