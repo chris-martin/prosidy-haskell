@@ -371,14 +371,14 @@ instance ListBuilding []
 
 data ListDirection = ListForward | ListBackward
 
-class ListTraversal list
+class ListWalk list
   where
-    listTraversal :: ListDirection -> Traversal (list a) (list b) a b
+    listWalk :: ListDirection -> Walk (list a) (list b) a b
 
-instance ListTraversal []
+instance ListWalk []
   where
-    listTraversal ListForward = Prelude.traverse
-    listTraversal ListBackward = \action xs -> Prelude.traverse action (List.reverse xs)
+    listWalk ListForward = Prelude.traverse
+    listWalk ListBackward = \action xs -> Prelude.traverse action (List.reverse xs)
 
 class Functor dict => DictBuilding (k :: Type) (dict :: Type -> Type) | dict -> k
   where
@@ -441,46 +441,46 @@ type Prism s t a b = (s -> Either t a, b -> t)
 type Prism' s a = (s -> Maybe a, a -> s)
 
 
----  Traversals  ---
+---  Walks  ---
 
-type Traversal s t a b = forall f. (Monad f) => (a -> f b) -> s -> f t
-type Traversal' s a = Traversal s s a a
+type Walk s t a b = forall f. (Monad f) => (a -> f b) -> s -> f t
+type Walk' s a = Walk s s a a
 
-isoTraversal :: forall s t u v a b. Iso s t u v -> Traversal u v a b -> Traversal s t a b
-isoTraversal (convert, convertBack) traverse action (s :: s) =
+isoWalk :: forall s t u v a b. Iso s t u v -> Walk u v a b -> Walk s t a b
+isoWalk (convert, convertBack) walk action (s :: s) =
   do
-    (v :: v) <- traverse action (convert s :: u)
+    (v :: v) <- walk action (convert s :: u)
     return (convertBack v :: t)
 
-lensTraversal :: forall s t u v a b. Lens s t u v -> Traversal u v a b -> Traversal s t a b
-lensTraversal (getPart, reassemble) traverse action (s :: s) =
+lensWalk :: forall s t u v a b. Lens s t u v -> Walk u v a b -> Walk s t a b
+lensWalk (getPart, reassemble) traverse action (s :: s) =
   do
     (v :: v) <- traverse action (getPart s :: u)
     return (reassemble s v :: t)
 
-traversalTraversal :: forall s t u v a b. Traversal s t u v -> Traversal u v a b -> Traversal s t a b
-traversalTraversal traverse1 traverse2 action (s :: s) = traverse1 (traverse2 action) s
+walkWalk :: forall s t u v a b. Walk s t u v -> Walk u v a b -> Walk s t a b
+walkWalk traverse1 traverse2 action (s :: s) = traverse1 (traverse2 action) s
 
-nilTraversal :: Traversal s s a b
-nilTraversal _ s = pure s
+nilWalk :: Walk s s a b
+nilWalk _ s = pure s
 
-idTraversal :: Traversal' s s
-idTraversal f s = f s
+idWalk :: Walk' s s
+idWalk f s = f s
 
 prosidyListIso :: Iso' (Prosidy f ('Context 'Many l)) (List f (Prosidy f ('Context 'One l)))
 prosidyListIso = (\(List x) -> x, List)
 
-prosidyListTraversal :: ListTraversal (List f) => ListDirection -> Traversal' (Prosidy f ('Context 'Many l)) (Prosidy f ('Context 'One l))
-prosidyListTraversal direction = prosidyListIso `isoTraversal` listTraversal direction
+prosidyListWalk :: ListWalk (List f) => ListDirection -> Walk' (Prosidy f ('Context 'Many l)) (Prosidy f ('Context 'One l))
+prosidyListWalk direction = prosidyListIso `isoWalk` listWalk direction
 
-blockChildrenTraversal :: Traversal' (Prosidy f ('Context 'One 'Block)) (Prosidy f ('Context 'Many 'Block))
-blockChildrenTraversal action block =
+blockChildrenWalk :: Walk' (Prosidy f ('Context 'One 'Block)) (Prosidy f ('Context 'Many 'Block))
+blockChildrenWalk action block =
     case block of
         TagBlock name attrs children -> fmap (TagBlock name attrs) (action children)
         _ -> pure block
 
-eachBlockChild :: ListTraversal (List f) => BlockDirection -> Traversal' (Prosidy f ('Context 'One 'Block)) (Prosidy f ('Context 'One 'Block))
-eachBlockChild blockDirection = blockChildrenTraversal `traversalTraversal` prosidyListTraversal (viewIso' blockListDirectionIso blockDirection)
+eachBlockChild :: ListWalk (List f) => BlockDirection -> Walk' (Prosidy f ('Context 'One 'Block)) (Prosidy f ('Context 'One 'Block))
+eachBlockChild blockDirection = blockChildrenWalk `walkWalk` prosidyListWalk (viewIso' blockListDirectionIso blockDirection)
 
 data TreeDirection = RootToLeaf | LeafToRoot
 data BlockDirection = TopToBottom | BottomToTop
@@ -489,17 +489,17 @@ data InlineDirection = LeftToRight | RightToLeft
 blockListDirectionIso :: Iso' BlockDirection ListDirection
 blockListDirectionIso = (\case TopToBottom -> ListForward; BottomToTop -> ListBackward, \case ListForward -> TopToBottom; ListBackward -> BottomToTop)
 
-class BlockTreeTraversal size level
+class BlockWalk size level
   where
-    blockTreeTraversal :: ListTraversal (List f) => TreeDirection -> BlockDirection -> Traversal' (Prosidy f ('Context size level)) (Prosidy f ('Context 'One 'Block))
+    blockWalk :: ListWalk (List f) => TreeDirection -> BlockDirection -> Walk' (Prosidy f ('Context size level)) (Prosidy f ('Context 'One 'Block))
 
-instance BlockTreeTraversal 'One 'Root
+instance BlockWalk 'One 'Root
   where
-    blockTreeTraversal treeDirection blockDirection = documentBodyLens `lensTraversal` blockTreeTraversal treeDirection blockDirection
+    blockWalk treeDirection blockDirection = documentBodyLens `lensWalk` blockWalk treeDirection blockDirection
 
-instance BlockTreeTraversal 'One 'Block
+instance BlockWalk 'One 'Block
   where
-    blockTreeTraversal treeDirection blockDirection action block =
+    blockWalk treeDirection blockDirection action block =
         case treeDirection of
             RootToLeaf ->
               do
@@ -510,9 +510,9 @@ instance BlockTreeTraversal 'One 'Block
                 block' <- eachBlockChild blockDirection action block
                 action block'
 
-instance BlockTreeTraversal 'Many 'Block
+instance BlockWalk 'Many 'Block
         where
-    blockTreeTraversal treeDirection blockDirection = prosidyListTraversal (viewIso' blockListDirectionIso blockDirection) `traversalTraversal` blockTreeTraversal treeDirection blockDirection
+    blockWalk treeDirection blockDirection = prosidyListWalk (viewIso' blockListDirectionIso blockDirection) `walkWalk` blockWalk treeDirection blockDirection
 
 
 ---  JSON  ---
