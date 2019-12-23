@@ -21,7 +21,7 @@ common all
     -- The most recent version of the `base` package that we have
     -- tested with is 4.12.0.0, so we cannot promise that it will
     -- work with `base` version 4.13 or greater.
-    build-depends:  base < 4.13
+    build-depends: base < 4.13
 
 library abstract-syntax
     import: all
@@ -37,3 +37,8 @@ library optics-concepts
     import: all
     visibility: public
     exposed-modules: Prosidy.OpticsConcepts
+
+library generation-concepts
+    import: all
+    visibility: public
+    exposed-modules: Prosidy.GenerationConcepts
