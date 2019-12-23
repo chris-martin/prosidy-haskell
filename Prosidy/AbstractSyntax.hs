@@ -28,7 +28,7 @@
        even from the base package. Disabling the implicit import
        of the Prelude module makes this more clear. -}
 
-{-# LANGUAGE LambdaCase, FlexibleContexts, FlexibleInstances, FunctionalDependencies, TypeFamilies, ExplicitForAll, StandaloneDeriving, DeriveFunctor, TypeApplications, ScopedTypeVariables, QuantifiedConstraints, RankNTypes, LiberalTypeSynonyms, UndecidableInstances, ApplicativeDo #-}
+{-# LANGUAGE LambdaCase, FlexibleContexts, FlexibleInstances, FunctionalDependencies, TypeFamilies, ExplicitForAll, StandaloneDeriving, DeriveFunctor, TypeApplications, ScopedTypeVariables, QuantifiedConstraints, RankNTypes, LiberalTypeSynonyms, UndecidableInstances #-}
 
 {- | The /abstract syntax tree/ is comprised of the semantic components
 of a Prosidy document (the text, paragraphs, tags, etc.) without
@@ -75,7 +75,7 @@ import Data.Char (Char)
 import qualified Data.Char as Char
 import Data.Eq (Eq)
 import Data.Function (($), fix)
-import qualified Data.List
+import qualified Data.List as List
 import System.IO (IO)
 
 -- Either
@@ -367,11 +367,18 @@ class Functor list => ListBuilding (list :: Type -> Type)
 instance ListBuilding []
   where
     listSingleton x = x : []
-    listConcat = (Data.List.++)
+    listConcat = (List.++)
+
+data ListDirection = ListForward | ListBackward
 
 class ListTraversal list
   where
-    listTraversal :: Traversal (list a) (list b) a b
+    listTraversal :: ListDirection -> Traversal (list a) (list b) a b
+
+instance ListTraversal []
+  where
+    listTraversal ListForward = Prelude.traverse
+    listTraversal ListBackward = \action xs -> Prelude.traverse action (List.reverse xs)
 
 class Functor dict => DictBuilding (k :: Type) (dict :: Type -> Type) | dict -> k
   where
@@ -409,6 +416,15 @@ type Iso' s a = (s -> a, a -> s)
 prosidyListIso :: Iso' (Prosidy f ('Context 'Many l)) (List f (Prosidy f ('Context 'One l)))
 prosidyListIso = (\(List x) -> x, List)
 
+blockListDirectionIso :: Iso' BlockDirection ListDirection
+blockListDirectionIso = (\case TopToBottom -> ListForward; BottomToTop -> ListBackward, \case ListForward -> TopToBottom; ListBackward -> BottomToTop)
+
+viewIso :: Iso s t a b -> s -> a
+viewIso (f, _) = f
+
+viewIso' :: Iso' s a -> s -> a
+viewIso' (f, _) = f
+
 
 ---  Lenses  ---
 
@@ -430,7 +446,7 @@ type Prism' s a = (s -> Maybe a, a -> s)
 
 ---  Traversals  ---
 
-type Traversal s t a b = forall f. (Applicative f) => (a -> f b) -> s -> f t
+type Traversal s t a b = forall f. (Monad f) => (a -> f b) -> s -> f t
 type Traversal' s a = Traversal s s a a
 
 isoTraversal :: forall s t u v a b. Iso s t u v -> Traversal u v a b -> Traversal s t a b
@@ -454,39 +470,46 @@ nilTraversal _ s = pure s
 idTraversal :: Traversal' s s
 idTraversal f s = f s
 
-prosidyListTraversal :: ListTraversal (List f) => Traversal' (Prosidy f ('Context 'Many l)) (Prosidy f ('Context 'One l))
-prosidyListTraversal = prosidyListIso `isoTraversal` listTraversal
+prosidyListTraversal :: ListTraversal (List f) => ListDirection -> Traversal' (Prosidy f ('Context 'Many l)) (Prosidy f ('Context 'One l))
+prosidyListTraversal direction = prosidyListIso `isoTraversal` listTraversal direction
 
-data TreeTraversalDirection = TopDown | BottomUp
+blockChildrenTraversal :: Traversal' (Prosidy f ('Context 'One 'Block)) (Prosidy f ('Context 'Many 'Block))
+blockChildrenTraversal action block =
+    case block of
+        TagBlock name attrs children -> fmap (TagBlock name attrs) (action children)
+        _ -> pure block
 
-data TreeTraversalInclusion = TraverseAll | TraverseDescendants
+eachBlockChild :: ListTraversal (List f) => BlockDirection -> Traversal' (Prosidy f ('Context 'One 'Block)) (Prosidy f ('Context 'One 'Block))
+eachBlockChild blockDirection = blockChildrenTraversal `traversalTraversal` prosidyListTraversal (viewIso' blockListDirectionIso blockDirection)
 
-data TreeTraversalType =
-    TraverseChildren
-  | TraverseRecursive TreeTraversalInclusion TreeTraversalDirection
+data TreeDirection = RootToLeaf | LeafToRoot
+data BlockDirection = TopToBottom | BottomToTop
+data InlineDirection = LeftToRight | RightToLeft
 
-class ProsidyTraversals size level
+class BlockTreeTraversal size level
   where
-    documentTraversal :: Traversal' (Prosidy f ('Context size level)) (Prosidy f ('Context 'One 'Root))
-    blockTreeTraversal :: ListTraversal (List f) => TreeTraversalType -> Traversal' (Prosidy f ('Context size level)) (Prosidy f ('Context 'One 'Block))
+    blockTreeTraversal :: ListTraversal (List f) => TreeDirection -> BlockDirection -> Traversal' (Prosidy f ('Context size level)) (Prosidy f ('Context 'One 'Block))
 
-instance ProsidyTraversals 'One 'Root
+instance BlockTreeTraversal 'One 'Root
   where
-    documentTraversal = idTraversal
-    blockTreeTraversal ttt = documentBodyLens `lensTraversal` blockTreeTraversal ttt
+    blockTreeTraversal treeDirection blockDirection = documentBodyLens `lensTraversal` blockTreeTraversal treeDirection blockDirection
 
-instance ProsidyTraversals 'One 'Block
+instance BlockTreeTraversal 'One 'Block
   where
-    documentTraversal = nilTraversal
-    blockTreeTraversal (TraverseRecursive TraverseAll TopDown) action block =
-      do
-        block' <- action block
-        return _____
+    blockTreeTraversal treeDirection blockDirection action block =
+        case treeDirection of
+            RootToLeaf ->
+              do
+                block' <- action block
+                eachBlockChild blockDirection action block'
+            LeafToRoot ->
+              do
+                block' <- eachBlockChild blockDirection action block
+                action block'
 
-instance (ProsidyTraversals 'One l) => ProsidyTraversals 'Many l
-  where
-    documentTraversal = nilTraversal
-    blockTreeTraversal ttt = prosidyListTraversal `traversalTraversal` blockTreeTraversal ttt
+instance BlockTreeTraversal 'Many 'Block
+        where
+    blockTreeTraversal treeDirection blockDirection = prosidyListTraversal (viewIso' blockListDirectionIso blockDirection) `traversalTraversal` blockTreeTraversal treeDirection blockDirection
 
 
 ---  JSON  ---
