@@ -448,8 +448,8 @@ opticWalk (Lens getPart reassemble) walk action (s :: s) =
 
 opticWalk (Prism narrow widen) walk action (s :: s) =
     case (narrow s) of
-        Either.Left (t :: t) -> return t
-        Either.Right (u :: u) ->
+        OpticFailure (t :: t) -> return t
+        OpticSuccess (u :: u) ->
           do
             (v :: v) <- walk action u
             return (widen v :: t)
@@ -458,8 +458,8 @@ opticWalk (Prism narrow widen) walk action (s :: s) =
 opticWalk (AffineTraversal findPart reassemble) walk action (s :: s) =
   do
     case (findPart s) of
-        Either.Left (t :: t) -> return t
-        Either.Right (u :: u) ->
+        OpticFailure (t :: t) -> return t
+        OpticSuccess (u :: u) ->
           do
             (v :: v) <- walk action u
             return (reassemble s v :: t)
@@ -539,7 +539,7 @@ eachBlockChild :: ListWalk (List f) =>
 
 eachBlockChild blockDirection =
     blockChildrenWalk `walkWalk`
-    prosidyListWalk (blockListDirectionIso `view` blockDirection)
+    prosidyListWalk (blockListDirectionIso `forward` blockDirection)
 
 blockListDirectionIso :: Iso' BlockDirection ListDirection
 blockListDirectionIso =
@@ -581,7 +581,7 @@ instance BlockWalk 'One 'Block
 instance BlockWalk 'Many 'Block
   where
     blockWalk treeDirection blockDirection =
-        prosidyListWalk (view blockListDirectionIso blockDirection)
+        prosidyListWalk (blockListDirectionIso `forward` blockDirection)
         `walkWalk` blockWalk treeDirection blockDirection
 
 

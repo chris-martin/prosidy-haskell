@@ -22,29 +22,23 @@
        rather than a type. -}
 
 {-# LANGUAGE NoImplicitPrelude #-}
-    {- This module depends on as little library code as possible,
-       even from the base package. Disabling the implicit import
-       of the Prelude module makes this more clear. -}
+    {- This module has extremely little external dependency,
+       not even from Prelude. -}
 
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module Prosidy.OpticsConcepts
   ( {- * Optic definition -}  Optic ( Iso, Lens, Prism, AffineTraversal ),
                               OpticForward ( .. ), OpticBackward ( .. ),
-    {- * Operations -}        view, review, preview, over,
+                              OpticTry ( .. ),
+    {- * Operations -}        forward, backward, tryForward, over,
     {- * Isomorphism -}       Iso, Iso',
     {- * Lens -}              Lens, Lens',
     {- * Prism -}             Prism, Prism',
     {- * Affine traversal -}  AffineTraversal, AffineTraversal'
   ) where
 
--- Either
-import Data.Either (Either)
-import qualified Data.Either as Either
-
--- Maybe
-import Data.Maybe (Maybe)
-import qualified Data.Maybe as Maybe
+data OpticTry t a = OpticFailure t | OpticSuccess a
 
 data OpticForward = ForwardTotal | ForwardPartial
 
@@ -52,54 +46,36 @@ data OpticBackward = BackwardTotal | BackwardReassemble
 
 data Optic (forward :: OpticForward) (backward :: OpticBackward) s t a b
   where
-    Iso ::
-        (s -> a)           -- ^ Total forward function
-        ->
-        (b -> t)           -- ^ Total backward function
-        ->
-        Optic 'ForwardTotal 'BackwardTotal s t a b
+    Iso :: (s -> a) -- ^ Total forward function
+        -> (b -> t) -- ^ Total backward function
+        -> Optic 'ForwardTotal 'BackwardTotal s t a b
 
-    Lens ::
-        (s -> a)           -- ^ Total forward function
-        ->
-        (s -> (b -> t))    -- ^ Backward reassembly
-        ->
-        Optic 'ForwardTotal 'BackwardReassemble s t a b
+    Lens :: (s -> a)         -- ^ Total forward function
+         -> (s -> (b -> t))  -- ^ Backward reassembly
+         -> Optic 'ForwardTotal 'BackwardReassemble s t a b
 
-    Prism ::
-        (s -> Either t a)  -- ^ Partial forward function
-        ->
-        (b -> t)           -- ^ Total backward function
-        ->
-        Optic 'ForwardPartial 'BackwardTotal s t a b
+    Prism :: (s -> OpticTry t a) -- ^ Partial forward function
+          -> (b -> t)            -- ^ Total backward function
+          -> Optic 'ForwardPartial 'BackwardTotal s t a b
 
-    AffineTraversal ::
-        (s -> Either t a)  -- ^ Partial forward function
-        ->
-        (s -> (b -> t))    -- ^ Backward reassembly
-        ->
-        Optic 'ForwardPartial 'BackwardReassemble s t a b
+    AffineTraversal :: (s -> OpticTry t a)  -- ^ Partial forward function
+                    -> (s -> (b -> t))      -- ^ Backward reassembly
+                    -> Optic 'ForwardPartial 'BackwardReassemble s t a b
 
-view :: Optic 'ForwardTotal backward s t a b -> s -> a
-view (Iso convert _convertBack) x = convert x
-view (Lens getPart _reassemble) x = getPart x
+forward :: Optic 'ForwardTotal backward s t a b -> s -> a
+forward (Iso convert _convertBack) x = convert x
+forward (Lens getPart _reassemble) x = getPart x
 
-review :: Optic forward 'BackwardTotal s t a b -> b -> t
-review (Iso _convert convertBack) x = convertBack x
-review (Prism _narrow widen) x = widen x
+backward :: Optic forward 'BackwardTotal s t a b -> b -> t
+backward (Iso _convert convertBack) x = convertBack x
+backward (Prism _narrow widen) x = widen x
 
-preview :: Optic forward backward s t a b -> s -> Maybe a
-preview o (s :: s) = case o of
-    Iso convert _convertBack -> Maybe.Just (convert s)
-    Lens getPart _reassemble -> Maybe.Just (getPart s)
-    Prism narrow _widen ->
-        case (narrow s) of
-            Either.Left _t -> Maybe.Nothing
-            Either.Right a -> Maybe.Just a
-    AffineTraversal findPart _reassemble ->
-        case (findPart s) of
-            Either.Left _t -> Maybe.Nothing
-            Either.Right a -> Maybe.Just a
+tryForward :: Optic forward backward s t a b -> s -> OpticTry t a
+tryForward o (s :: s) = case o of
+    Iso convert _convertBack -> OpticSuccess (convert s)
+    Lens getPart _reassemble -> OpticSuccess (getPart s)
+    Prism narrow _widen -> narrow s
+    AffineTraversal findPart _reassemble -> findPart s
 
 over :: Optic forward backward s t a b -> (a -> b) -> (s -> t)
 over o (f :: a -> b) (s :: s) = case o of
@@ -107,12 +83,12 @@ over o (f :: a -> b) (s :: s) = case o of
     Lens getPart reassemble -> reassemble s (f (getPart s))
     Prism narrow widen ->
         case (narrow s) of
-            Either.Left t -> t
-            Either.Right a -> widen (f a)
+            OpticFailure t -> t
+            OpticSuccess a -> widen (f a)
     AffineTraversal findPart reassemble ->
         case (findPart s) of
-            Either.Left t -> t
-            Either.Right a -> reassemble s (f a)
+            OpticFailure t -> t
+            OpticSuccess a -> reassemble s (f a)
 
 type Iso s t a b = Optic 'ForwardTotal 'BackwardTotal s t a b
 type Iso' s a = Iso s s a a
