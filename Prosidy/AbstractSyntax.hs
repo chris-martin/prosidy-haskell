@@ -64,19 +64,11 @@ module Prosidy.AbstractSyntax
     {- ** Base -}        BaseFoundation,
                          AssociationList ( AssociationList ),
     -------------------------------------------------------------------
-    {- * Abstract -}
-    {- ** Optic -}       Optic ( Iso, Lens, Prism ),
-                         OpticForward ( .. ), OpticBackward ( .. ),
-                         view, review, preview, over,
-    {- ** Isomorphism -} Iso, Iso',
-    {- ** Lens -}        Lens, Lens',
-    {- ** Prism -}       Prism, Prism',
-    {- ** Walk -}        Walk, Walk', nilWalk, idWalk, opticWalk,
-    -------------------------------------------------------------------
     {- * Fun with AST -} documentHeadLens, documentBodyLens,
                          prosidyListIso,
     -------------------------------------------------------------------
-    {- * AST walking -}  InlineDirection ( LeftToRight, RightToLeft ),
+    {- * AST walking -}  Walk, Walk', nilWalk, idWalk, opticWalk,
+                         InlineDirection ( LeftToRight, RightToLeft ),
                          BlockDirection ( TopToBottom, BottomToTop ),
                          TreeDirection ( RootToLeaf, LeafToRoot ),
                          prosidyListWalk, blockChildrenWalk,
@@ -93,6 +85,8 @@ module Prosidy.AbstractSyntax
                          genInline, GenOption ( .. ), genDefault
     -------------------------------------------------------------------
   ) where
+
+import Prosidy.OpticsConcepts
 
 import Data.Char (Char)
 import qualified Data.Char as Char
@@ -430,61 +424,6 @@ instance (ListBuilding list) => DictBuilding k (AssociationList list k)
   where
     dictSingleton k v = AssociationList (listSingleton (k, v))
     dictConcat (AssociationList a) (AssociationList b) = AssociationList (listConcat a b)
-
-
----  Optics concepts  ---
-
-data OpticForward = ForwardTotal | ForwardPartial
-
-data OpticBackward = BackwardTotal | BackwardReassemble
-
-data Optic (forward :: OpticForward) (backward :: OpticBackward) s t a b
-  where
-    Iso ::
-        (s -> a)           -- ^ Total forward function
-        ->
-        (b -> t)           -- ^ Total backward function
-        ->
-        Optic 'ForwardTotal 'BackwardTotal s t a b
-
-    Lens ::
-        (s -> a)           -- ^ Total forward function
-        ->
-        (s -> (b -> t))    -- ^ Backward reassembly
-        ->
-        Optic 'ForwardTotal 'BackwardReassemble s t a b
-
-    Prism ::
-        (s -> Either t a)  -- ^ Partial forward function
-        ->
-        (b -> t)           -- ^ Total backward function
-        ->
-        Optic 'ForwardPartial 'BackwardTotal s t a b
-
-view :: Optic 'ForwardTotal backward s t a b -> s -> a
-view (Iso f _) x = f x
-view (Lens f _) x = f x
-
-review :: Optic forward 'BackwardTotal s t a b -> b -> t
-review (Iso _ f) x = f x
-review (Prism _ f) x = f x
-
-preview :: Optic forward backward s t a b -> s -> Maybe a
-preview (Iso f _) x = Maybe.Just (f x)
-preview (Lens f _) x = Maybe.Just (f x)
-preview (Prism f _) x = Either.either (\_ -> Maybe.Nothing) Maybe.Just (f x)
-
-over :: Optic forward backward s t a b -> (a -> b) -> (s -> t)
-over (Iso f g) h x = g (h (f x))
-over (Lens f g) h x = g x (h (f x))
-over (Prism f g) h x = (Either.either id (\a -> g (h a)) (f x))
-
-type Iso s t a b = Optic 'ForwardTotal 'BackwardTotal s t a b
-type Iso' s a = Iso s s a a
-type Lens s t a b = Optic 'ForwardTotal 'BackwardReassemble s t a b
-type Lens' s a = Lens s s a a
-type Prism s t a b = Optic 'ForwardPartial 'BackwardTotal s t a b
-type Prism' s a = Prism s s a a
 
 
 ---  Walk concept  ---

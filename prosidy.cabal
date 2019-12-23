@@ -32,3 +32,8 @@ library concrete-syntax
     import: all
     visibility: public
     exposed-modules: Prosidy.ConcreteSyntax
+
+library optics-concepts
+    import: all
+    visibility: public
+    exposed-modules: Prosidy.OpticsConcepts
