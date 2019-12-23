@@ -65,11 +65,13 @@ module Prosidy.AbstractSyntax
                          AssociationList ( AssociationList ),
     -------------------------------------------------------------------
     {- * Abstract -}
-    {- ** Isomorphism -} Iso, Iso', overIso, viewIso, viewIso',
+    {- ** Optic -}       Optic ( Iso, Lens, Prism ),
+                         OpticForward ( .. ), OpticBackward ( .. ),
+                         view, review, preview, over,
+    {- ** Isomorphism -} Iso, Iso',
     {- ** Lens -}        Lens, Lens',
     {- ** Prism -}       Prism, Prism',
-    {- ** Walk -}        Walk, Walk', nilWalk, idWalk, isoWalk,
-                         lensWalk, walkWalk,
+    {- ** Walk -}        Walk, Walk', nilWalk, idWalk, opticWalk,
     -------------------------------------------------------------------
     {- * Fun with AST -} documentHeadLens, documentBodyLens,
                          prosidyListIso,
@@ -98,6 +100,7 @@ import Data.Eq (Eq)
 import Data.Function (($), fix, id)
 import qualified Data.List as List
 import System.IO (IO)
+import Data.Functor.Identity (Identity (Identity))
 
 -- Either
 import Data.Either (Either)
@@ -429,31 +432,42 @@ instance (ListBuilding list) => DictBuilding k (AssociationList list k)
     dictConcat (AssociationList a) (AssociationList b) = AssociationList (listConcat a b)
 
 
----  Isomorphism concept  ---
+---  Optics concepts  ---
 
-type Iso s t a b = (s -> a, b -> t)
-type Iso' s a = (s -> a, a -> s)
+data OpticForward = ForwardTotal | ForwardPartial
 
-overIso :: Iso s t a b -> (a -> b) -> (s -> t)
-overIso (f, g) h x = g (h (f x))
+data OpticBackward = BackwardTotal | BackwardReassemble
 
-viewIso :: Iso s t a b -> s -> a
-viewIso (f, _) = f
+data Optic (forward :: OpticForward) (backward :: OpticBackward) s t a b
+  where
+    Iso :: (s -> a) -> (b -> t) -> Optic 'ForwardTotal 'BackwardTotal s t a b
+    Lens :: (s -> a) -> (s -> b -> t) -> Optic 'ForwardTotal 'BackwardReassemble s t a b
+    Prism :: (s -> Either t a) -> (b -> t) -> Optic 'ForwardPartial 'BackwardTotal s t a b
 
-viewIso' :: Iso' s a -> s -> a
-viewIso' (f, _) = f
+view :: Optic 'ForwardTotal backward s t a b -> s -> a
+view (Iso f _) x = f x
+view (Lens f _) x = f x
 
+review :: Optic forward 'BackwardTotal s t a b -> b -> t
+review (Iso _ f) x = f x
+review (Prism _ f) x = f x
 
----  Lens concept  ---
+preview :: Optic forward backward s t a b -> s -> Maybe a
+preview (Iso f _) x = Maybe.Just (f x)
+preview (Lens f _) x = Maybe.Just (f x)
+preview (Prism f _) x = Either.either (\_ -> Maybe.Nothing) Maybe.Just (f x)
 
-type Lens s t a b = (s -> a, s -> b -> t)
-type Lens' s a = (s -> a, s -> a -> s)
+over :: Optic forward backward s t a b -> (a -> b) -> (s -> t)
+over (Iso f g) h x = g (h (f x))
+over (Lens f g) h x = g x (h (f x))
+over (Prism f g) h x = (Either.either id (\a -> g (h a)) (f x))
 
-
----  Prism concept  ---
-
-type Prism s t a b = (s -> Either t a, b -> t)
-type Prism' s a = (s -> Maybe a, a -> s)
+type Iso s t a b = Optic 'ForwardTotal 'BackwardTotal s t a b
+type Iso' s a = Iso s s a a
+type Lens s t a b = Optic 'ForwardTotal 'BackwardReassemble s t a b
+type Lens' s a = Lens s s a a
+type Prism s t a b = Optic 'ForwardPartial 'BackwardTotal s t a b
+type Prism' s a = Prism s s a a
 
 
 ---  Walk concept  ---
@@ -461,17 +475,26 @@ type Prism' s a = (s -> Maybe a, a -> s)
 type Walk s t a b = forall f. (Monad f) => (a -> f b) -> s -> f t
 type Walk' s a = Walk s s a a
 
-isoWalk :: forall s t u v a b. Iso s t u v -> Walk u v a b -> Walk s t a b
-isoWalk (convert, convertBack) walk action (s :: s) =
+opticWalk :: forall forward backward s t u v a b.
+    Optic forward backward s t u v -> Walk u v a b -> Walk s t a b
+
+opticWalk (Iso convert convertBack) walk action (s :: s) =
   do
     (v :: v) <- walk action (convert s :: u)
     return (convertBack v :: t)
 
-lensWalk :: forall s t u v a b. Lens s t u v -> Walk u v a b -> Walk s t a b
-lensWalk (getPart, reassemble) traverse action (s :: s) =
+opticWalk (Lens getPart reassemble) walk action (s :: s) =
   do
-    (v :: v) <- traverse action (getPart s :: u)
+    (v :: v) <- walk action (getPart s :: u)
     return (reassemble s v :: t)
+
+opticWalk (Prism narrow widen) walk action (s :: s) =
+    case (narrow s) of
+        Either.Left (t :: t) -> return t
+        Either.Right (u :: u) ->
+          do
+            (v :: v) <- walk action u
+            return (widen v :: t)
 
 walkWalk :: forall s t u v a b. Walk s t u v -> Walk u v a b -> Walk s t a b
 walkWalk traverse1 traverse2 action (s :: s) = traverse1 (traverse2 action) s
@@ -491,9 +514,9 @@ documentHeadLens ::
         (Prosidy f ('Context 'One 'Meta))
 
 documentHeadLens =
-    ( \(Document head _) -> head
-    , \(Document _ body) head -> Document head body
-    )
+    Lens
+        (\(Document head _) -> head)
+        (\(Document _ body) head -> Document head body)
 
 documentBodyLens ::
     Lens'
@@ -501,16 +524,16 @@ documentBodyLens ::
         (Prosidy f ('Context 'Many 'Block))
 
 documentBodyLens =
-    ( \(Document _ body) -> body
-    , \(Document head _) body -> Document head body
-    )
+    Lens
+        (\(Document _ body) -> body)
+        (\(Document head _) body -> Document head body)
 
 prosidyListIso ::
     Iso'
         (Prosidy f ('Context 'Many l))
         (List f (Prosidy f ('Context 'One l)))
 
-prosidyListIso = (\(List x) -> x, List)
+prosidyListIso = Iso (\(List x) -> x) List
 
 
 ---  Walking around in the AST  ---
@@ -528,7 +551,7 @@ prosidyListWalk :: ListWalk (List f) =>
           (Prosidy f ('Context 'One l))
 
 prosidyListWalk direction =
-    prosidyListIso `isoWalk` listWalk direction
+    prosidyListIso `opticWalk` listWalk direction
 
 blockChildrenWalk ::
     Walk' (Prosidy f ('Context 'One 'Block))
@@ -548,15 +571,15 @@ eachBlockChild :: ListWalk (List f) =>
 
 eachBlockChild blockDirection =
     blockChildrenWalk `walkWalk`
-    prosidyListWalk (viewIso' blockListDirectionIso blockDirection)
+    prosidyListWalk (blockListDirectionIso `view` blockDirection)
 
 blockListDirectionIso :: Iso' BlockDirection ListDirection
 blockListDirectionIso =
-    ( \case TopToBottom -> ListForward
-            BottomToTop -> ListBackward
-    , \case ListForward -> TopToBottom
-            ListBackward -> BottomToTop
-    )
+    Iso
+        (\case TopToBottom -> ListForward
+               BottomToTop -> ListBackward)
+        (\case ListForward -> TopToBottom
+               ListBackward -> BottomToTop)
 
 class BlockWalk size level
   where
@@ -571,7 +594,7 @@ class BlockWalk size level
 instance BlockWalk 'One 'Root
   where
     blockWalk treeDirection blockDirection =
-        documentBodyLens `lensWalk`
+        documentBodyLens `opticWalk`
         blockWalk treeDirection blockDirection
 
 instance BlockWalk 'One 'Block
@@ -590,7 +613,7 @@ instance BlockWalk 'One 'Block
 instance BlockWalk 'Many 'Block
   where
     blockWalk treeDirection blockDirection =
-        prosidyListWalk (viewIso' blockListDirectionIso blockDirection)
+        prosidyListWalk (view blockListDirectionIso blockDirection)
         `walkWalk` blockWalk treeDirection blockDirection
 
 
