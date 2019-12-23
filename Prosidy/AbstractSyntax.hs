@@ -454,6 +454,16 @@ opticWalk (Prism narrow widen) walk action (s :: s) =
             (v :: v) <- walk action u
             return (widen v :: t)
 
+
+opticWalk (AffineTraversal findPart reassemble) walk action (s :: s) =
+  do
+    case (findPart s) of
+        Either.Left (t :: t) -> return t
+        Either.Right (u :: u) ->
+          do
+            (v :: v) <- walk action u
+            return (reassemble s v :: t)
+
 walkWalk :: forall s t u v a b. Walk s t u v -> Walk u v a b -> Walk s t a b
 walkWalk traverse1 traverse2 action (s :: s) = traverse1 (traverse2 action) s
 

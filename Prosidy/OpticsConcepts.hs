@@ -1,6 +1,9 @@
 {-# OPTIONS_GHC -Wall #-}
     {- All GHC warnings are enabled. -}
 
+{-# OPTIONS_GHC -Werror #-}
+    {- This module may not emit any warnings. -}
+
 {-# LANGUAGE GADTs #-}
     {- The 'Optic' type is a GADT; its data constructors have
        different type parameters than the 'Optic' type itself.
@@ -23,16 +26,17 @@
        even from the base package. Disabling the implicit import
        of the Prelude module makes this more clear. -}
 
-module Prosidy.OpticsConcepts
-  ( {- * Optic -}       Optic ( Iso, Lens, Prism ),
-                        OpticForward ( .. ), OpticBackward ( .. ),
-                        view, review, preview, over,
-    {- * Isomorphism -} Iso, Iso',
-    {- * Lens -}        Lens, Lens',
-    {- * Prism -}       Prism, Prism'
-  ) where
+{-# LANGUAGE ScopedTypeVariables #-}
 
-import Prelude (id)
+module Prosidy.OpticsConcepts
+  ( {- * Optic definition -}  Optic ( Iso, Lens, Prism, AffineTraversal ),
+                              OpticForward ( .. ), OpticBackward ( .. ),
+    {- * Operations -}        view, review, preview, over,
+    {- * Isomorphism -}       Iso, Iso',
+    {- * Lens -}              Lens, Lens',
+    {- * Prism -}             Prism, Prism',
+    {- * Affine traversal -}  AffineTraversal, AffineTraversal'
+  ) where
 
 -- Either
 import Data.Either (Either)
@@ -69,23 +73,46 @@ data Optic (forward :: OpticForward) (backward :: OpticBackward) s t a b
         ->
         Optic 'ForwardPartial 'BackwardTotal s t a b
 
+    AffineTraversal ::
+        (s -> Either t a)  -- ^ Partial forward function
+        ->
+        (s -> (b -> t))    -- ^ Backward reassembly
+        ->
+        Optic 'ForwardPartial 'BackwardReassemble s t a b
+
 view :: Optic 'ForwardTotal backward s t a b -> s -> a
-view (Iso f _) x = f x
-view (Lens f _) x = f x
+view (Iso convert _convertBack) x = convert x
+view (Lens getPart _reassemble) x = getPart x
 
 review :: Optic forward 'BackwardTotal s t a b -> b -> t
-review (Iso _ f) x = f x
-review (Prism _ f) x = f x
+review (Iso _convert convertBack) x = convertBack x
+review (Prism _narrow widen) x = widen x
 
 preview :: Optic forward backward s t a b -> s -> Maybe a
-preview (Iso f _) x = Maybe.Just (f x)
-preview (Lens f _) x = Maybe.Just (f x)
-preview (Prism f _) x = Either.either (\_ -> Maybe.Nothing) Maybe.Just (f x)
+preview o (s :: s) = case o of
+    Iso convert _convertBack -> Maybe.Just (convert s)
+    Lens getPart _reassemble -> Maybe.Just (getPart s)
+    Prism narrow _widen ->
+        case (narrow s) of
+            Either.Left _t -> Maybe.Nothing
+            Either.Right a -> Maybe.Just a
+    AffineTraversal findPart _reassemble ->
+        case (findPart s) of
+            Either.Left _t -> Maybe.Nothing
+            Either.Right a -> Maybe.Just a
 
 over :: Optic forward backward s t a b -> (a -> b) -> (s -> t)
-over (Iso f g) h x = g (h (f x))
-over (Lens f g) h x = g x (h (f x))
-over (Prism f g) h x = (Either.either id (\a -> g (h a)) (f x))
+over o (f :: a -> b) (s :: s) = case o of
+    Iso convert convertBack -> convertBack (f (convert s))
+    Lens getPart reassemble -> reassemble s (f (getPart s))
+    Prism narrow widen ->
+        case (narrow s) of
+            Either.Left t -> t
+            Either.Right a -> widen (f a)
+    AffineTraversal findPart reassemble ->
+        case (findPart s) of
+            Either.Left t -> t
+            Either.Right a -> reassemble s (f a)
 
 type Iso s t a b = Optic 'ForwardTotal 'BackwardTotal s t a b
 type Iso' s a = Iso s s a a
@@ -93,3 +120,5 @@ type Lens s t a b = Optic 'ForwardTotal 'BackwardReassemble s t a b
 type Lens' s a = Lens s s a a
 type Prism s t a b = Optic 'ForwardPartial 'BackwardTotal s t a b
 type Prism' s a = Prism s s a a
+type AffineTraversal s t a b = Optic 'ForwardPartial 'BackwardReassemble s t a b
+type AffineTraversal' s a = AffineTraversal s s a a
