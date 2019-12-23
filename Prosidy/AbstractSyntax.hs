@@ -440,9 +440,26 @@ data OpticBackward = BackwardTotal | BackwardReassemble
 
 data Optic (forward :: OpticForward) (backward :: OpticBackward) s t a b
   where
-    Iso :: (s -> a) -> (b -> t) -> Optic 'ForwardTotal 'BackwardTotal s t a b
-    Lens :: (s -> a) -> (s -> b -> t) -> Optic 'ForwardTotal 'BackwardReassemble s t a b
-    Prism :: (s -> Either t a) -> (b -> t) -> Optic 'ForwardPartial 'BackwardTotal s t a b
+    Iso ::
+        (s -> a)           -- ^ Total forward function
+        ->
+        (b -> t)           -- ^ Total backward function
+        ->
+        Optic 'ForwardTotal 'BackwardTotal s t a b
+
+    Lens ::
+        (s -> a)           -- ^ Total forward function
+        ->
+        (s -> (b -> t))    -- ^ Backward reassembly
+        ->
+        Optic 'ForwardTotal 'BackwardReassemble s t a b
+
+    Prism ::
+        (s -> Either t a)  -- ^ Partial forward function
+        ->
+        (b -> t)           -- ^ Total backward function
+        ->
+        Optic 'ForwardPartial 'BackwardTotal s t a b
 
 view :: Optic 'ForwardTotal backward s t a b -> s -> a
 view (Iso f _) x = f x
