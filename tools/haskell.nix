@@ -1,0 +1,4 @@
+{ haskellPackages }:
+
+haskellPackages.ghcWithPackages (p: [
+])

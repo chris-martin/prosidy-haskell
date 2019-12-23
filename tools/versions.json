@@ -1,0 +1,14 @@
+{
+  "nixpkgs": {
+    "owner": "NixOS",
+    "repo": "nixpkgs-channels",
+    "rev": "d85e435b7bded2596d7b201bcd938c94d8a921c1",
+    "sha256": "1msjm4kx1z73v444i1iybvmc7z0kfkbn9nzr21rn5yc4ql1jwf99"
+  },
+  "ghcide": {
+    "owner": "hercules-ci",
+    "repo": "ghcide-nix",
+    "rev": "f0de6033203963f1b40e2ee38fb60d36873449ac",
+    "sha256": "1n8lbj322219v9y2akavlli0n034yp1mj84j0hw9sa0l3ldzaf1r"
+  }
+}
