@@ -485,13 +485,31 @@ idWalk f s = f s
 
 ---  Various basic AST manipulations  ---
 
-documentHeadLens :: Lens' (Prosidy f ('Context 'One 'Root)) (Prosidy f ('Context 'One 'Meta))
-documentHeadLens = (\(Document head _) -> head, \(Document _ body) head -> Document head body)
+documentHeadLens ::
+    Lens'
+        (Prosidy f ('Context 'One 'Root))
+        (Prosidy f ('Context 'One 'Meta))
 
-documentBodyLens :: Lens' (Prosidy f ('Context 'One 'Root)) (Prosidy f ('Context 'Many 'Block))
-documentBodyLens = (\(Document _ body) -> body, \(Document head _) body -> Document head body)
+documentHeadLens =
+    ( \(Document head _) -> head
+    , \(Document _ body) head -> Document head body
+    )
 
-prosidyListIso :: Iso' (Prosidy f ('Context 'Many l)) (List f (Prosidy f ('Context 'One l)))
+documentBodyLens ::
+    Lens'
+        (Prosidy f ('Context 'One 'Root))
+        (Prosidy f ('Context 'Many 'Block))
+
+documentBodyLens =
+    ( \(Document _ body) -> body
+    , \(Document head _) body -> Document head body
+    )
+
+prosidyListIso ::
+    Iso'
+        (Prosidy f ('Context 'Many l))
+        (List f (Prosidy f ('Context 'One l)))
+
 prosidyListIso = (\(List x) -> x, List)
 
 
@@ -503,28 +521,58 @@ data BlockDirection = TopToBottom | BottomToTop
 
 data InlineDirection = LeftToRight | RightToLeft
 
-prosidyListWalk :: ListWalk (List f) => ListDirection -> Walk' (Prosidy f ('Context 'Many l)) (Prosidy f ('Context 'One l))
-prosidyListWalk direction = prosidyListIso `isoWalk` listWalk direction
+prosidyListWalk :: ListWalk (List f) =>
+    ListDirection
+    ->
+    Walk' (Prosidy f ('Context 'Many l))
+          (Prosidy f ('Context 'One l))
 
-blockChildrenWalk :: Walk' (Prosidy f ('Context 'One 'Block)) (Prosidy f ('Context 'Many 'Block))
+prosidyListWalk direction =
+    prosidyListIso `isoWalk` listWalk direction
+
+blockChildrenWalk ::
+    Walk' (Prosidy f ('Context 'One 'Block))
+          (Prosidy f ('Context 'Many 'Block))
+
 blockChildrenWalk action block =
     case block of
-        TagBlock name attrs children -> fmap (TagBlock name attrs) (action children)
+        TagBlock name attrs children ->
+            TagBlock name attrs `fmap` action children
         _ -> pure block
 
-eachBlockChild :: ListWalk (List f) => BlockDirection -> Walk' (Prosidy f ('Context 'One 'Block)) (Prosidy f ('Context 'One 'Block))
-eachBlockChild blockDirection = blockChildrenWalk `walkWalk` prosidyListWalk (viewIso' blockListDirectionIso blockDirection)
+eachBlockChild :: ListWalk (List f) =>
+    BlockDirection
+    ->
+    Walk' (Prosidy f ('Context 'One 'Block))
+          (Prosidy f ('Context 'One 'Block))
+
+eachBlockChild blockDirection =
+    blockChildrenWalk `walkWalk`
+    prosidyListWalk (viewIso' blockListDirectionIso blockDirection)
 
 blockListDirectionIso :: Iso' BlockDirection ListDirection
-blockListDirectionIso = (\case TopToBottom -> ListForward; BottomToTop -> ListBackward, \case ListForward -> TopToBottom; ListBackward -> BottomToTop)
+blockListDirectionIso =
+    ( \case TopToBottom -> ListForward
+            BottomToTop -> ListBackward
+    , \case ListForward -> TopToBottom
+            ListBackward -> BottomToTop
+    )
 
 class BlockWalk size level
   where
-    blockWalk :: ListWalk (List f) => TreeDirection -> BlockDirection -> Walk' (Prosidy f ('Context size level)) (Prosidy f ('Context 'One 'Block))
+    blockWalk :: ListWalk (List f) =>
+        TreeDirection
+        ->
+        BlockDirection
+        ->
+        Walk' (Prosidy f ('Context size level))
+              (Prosidy f ('Context 'One 'Block))
 
 instance BlockWalk 'One 'Root
   where
-    blockWalk treeDirection blockDirection = documentBodyLens `lensWalk` blockWalk treeDirection blockDirection
+    blockWalk treeDirection blockDirection =
+        documentBodyLens `lensWalk`
+        blockWalk treeDirection blockDirection
 
 instance BlockWalk 'One 'Block
   where
@@ -540,8 +588,10 @@ instance BlockWalk 'One 'Block
                 action block'
 
 instance BlockWalk 'Many 'Block
-        where
-    blockWalk treeDirection blockDirection = prosidyListWalk (viewIso' blockListDirectionIso blockDirection) `walkWalk` blockWalk treeDirection blockDirection
+  where
+    blockWalk treeDirection blockDirection =
+        prosidyListWalk (viewIso' blockListDirectionIso blockDirection)
+        `walkWalk` blockWalk treeDirection blockDirection
 
 
 ---  JSON  ---
