@@ -1,7 +1,7 @@
 {-# OPTIONS_GHC -Wall #-}
     {- All GHC warnings are enabled. -}
 
-{-# OPTIONS_GHC -Werror #-}
+--{-# OPTIONS_GHC -Werror #-}
     {- This module may not emit any warnings. -}
 
 {-# LANGUAGE GADTs #-}
@@ -50,14 +50,6 @@ data OpticTry t a = OpticFailure t | OpticSuccess a
 --         OpticFailure (t :: t) -> OpticFailure (f t :: s)
 --         OpticSuccess (a :: a) -> OpticSuccess (g a :: b)
 
-mapFailure :: (t -> s) -> OpticTry t a -> OpticTry s a
-mapFailure f (OpticFailure t) = OpticFailure (f t)
-mapFailure _ (OpticSuccess a) = OpticSuccess a
-
-mapSuccess :: (a -> b) -> OpticTry t a -> OpticTry t b
-mapSuccess _ (OpticFailure t) = OpticFailure t
-mapSuccess f (OpticSuccess a) = OpticSuccess (f a)
-
 data OpticForward = ForwardTotal | ForwardPartial
 
 data OpticBackward = BackwardTotal | BackwardReassemble
@@ -92,24 +84,45 @@ type family BackwardComposition a b
     BackwardComposition 'BackwardReassemble _ = 'BackwardReassemble
     BackwardComposition _ 'BackwardReassemble = 'BackwardReassemble
 
+-- |
+-- >                ┌───────┐  ┌───────┐     ┌───────────┐     ┌───────┐
+-- >                │ s → u │  │ u → a │     │ s → u → a │     │ s → a │
+-- >  opticCompose  │     ↓ │  │     ↓ │  =  │         ↓ │  =  │     ↓ │
+-- >                │ t ← v │  │ t ← b │     │ t ← v ← b │     │ t ← b │
+-- >                └───────┘  └───────┘     └───────────┘     └───────┘
+
 opticCompose :: forall fore1 back1 fore2 back2 s t u v a b.
        Optic fore1 back1 s t u v
     -> Optic fore2 back2 u v a b
     -> Optic (ForwardComposition fore1 fore2)
              (BackwardComposition back2 back2) s t a b
 
-opticCompose (Iso convert1 convertBack1) (Iso convert2 convertBack2) =
-    Iso
-        (\s -> convert2 (convert1 s))
-        (\b -> convertBack1 (convertBack2 b))
-opticCompose (Iso convert convertBack) (Lens getPart reassemble) =
-    Lens
-        (\s -> getPart (convert s))
-        (\s b -> convertBack (reassemble (convert s) b))
+opticCompose (Iso convert1 convertBack1) (Iso convert2 convertBack2) = Iso convert3 convertBack3
+  where
+    convert3 :: s -> a
+    convert3 s = convert2 (convert1 s :: u)
+
+    convertBack3 :: b -> t
+    convertBack3 b = convertBack1 (convertBack2 b :: v)
+
+opticCompose (Iso convert convertBack) (Lens getPart reassemble) = Lens getPart' reassemble'
+  where
+    getPart' :: s -> a
+    getPart' s = getPart (convert s :: u)
+
+    reassemble' :: s -> b -> t
+    reassemble' s b = convertBack (reassemble (convert s) b)
+
 opticCompose (Iso convert convertBack) (Prism narrow widen) =
     Prism
-        (\s -> convertBack `mapFailure` narrow (convert s :: u))
+        (\s -> case narrow (convert s :: u) of
+            OpticFailure (v :: v) -> OpticFailure (convertBack v :: t)
+            OpticSuccess (a :: a) -> OpticSuccess a
+        )
         (\b -> convertBack (widen b))
+
+-- opticCompose (Iso convert convertBack) (AffineTraversal findPart reassemble) =
+    -- AffineTraversal
 
 forward :: Optic 'ForwardTotal backward s t a b -> s -> a
 forward (Iso convert _convertBack) x = convert x
