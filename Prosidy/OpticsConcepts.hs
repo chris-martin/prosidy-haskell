@@ -27,6 +27,8 @@
 
 {-# LANGUAGE ScopedTypeVariables #-}
 
+{-# LANGUAGE TypeFamilies #-}
+
 module Prosidy.OpticsConcepts
   ( {- * Optic definition -}  Optic ( Iso, Lens, Prism, AffineTraversal ),
                               OpticForward ( .. ), OpticBackward ( .. ),
@@ -35,10 +37,26 @@ module Prosidy.OpticsConcepts
     {- * Isomorphism -}       Iso, Iso',
     {- * Lens -}              Lens, Lens',
     {- * Prism -}             Prism, Prism',
-    {- * Affine traversal -}  AffineTraversal, AffineTraversal'
+    {- * Affine traversal -}  AffineTraversal, AffineTraversal',
+    {- * Composition -}       opticCompose,
+                              ForwardComposition, BackwardComposition
   ) where
 
 data OpticTry t a = OpticFailure t | OpticSuccess a
+
+-- bimap :: forall s t a b. (t -> s) -> (a -> b) -> OpticTry t a -> OpticTry s b
+-- bimap f g try =
+--     case try of
+--         OpticFailure (t :: t) -> OpticFailure (f t :: s)
+--         OpticSuccess (a :: a) -> OpticSuccess (g a :: b)
+
+mapFailure :: (t -> s) -> OpticTry t a -> OpticTry s a
+mapFailure f (OpticFailure t) = OpticFailure (f t)
+mapFailure _ (OpticSuccess a) = OpticSuccess a
+
+mapSuccess :: (a -> b) -> OpticTry t a -> OpticTry t b
+mapSuccess _ (OpticFailure t) = OpticFailure t
+mapSuccess f (OpticSuccess a) = OpticSuccess (f a)
 
 data OpticForward = ForwardTotal | ForwardPartial
 
@@ -61,6 +79,37 @@ data Optic (forward :: OpticForward) (backward :: OpticBackward) s t a b
     AffineTraversal :: (s -> OpticTry t a)  -- ^ Partial forward function
                     -> (s -> (b -> t))      -- ^ Backward reassembly
                     -> Optic 'ForwardPartial 'BackwardReassemble s t a b
+
+type family ForwardComposition a b
+  where
+    ForwardComposition 'ForwardTotal 'ForwardTotal = 'ForwardTotal
+    ForwardComposition 'ForwardPartial _ = 'ForwardPartial
+    ForwardComposition _ 'ForwardPartial = 'ForwardPartial
+
+type family BackwardComposition a b
+  where
+    BackwardComposition 'BackwardTotal 'BackwardTotal = 'BackwardTotal
+    BackwardComposition 'BackwardReassemble _ = 'BackwardReassemble
+    BackwardComposition _ 'BackwardReassemble = 'BackwardReassemble
+
+opticCompose :: forall fore1 back1 fore2 back2 s t u v a b.
+       Optic fore1 back1 s t u v
+    -> Optic fore2 back2 u v a b
+    -> Optic (ForwardComposition fore1 fore2)
+             (BackwardComposition back2 back2) s t a b
+
+opticCompose (Iso convert1 convertBack1) (Iso convert2 convertBack2) =
+    Iso
+        (\s -> convert2 (convert1 s))
+        (\b -> convertBack1 (convertBack2 b))
+opticCompose (Iso convert convertBack) (Lens getPart reassemble) =
+    Lens
+        (\s -> getPart (convert s))
+        (\s b -> convertBack (reassemble (convert s) b))
+opticCompose (Iso convert convertBack) (Prism narrow widen) =
+    Prism
+        (\s -> convertBack `mapFailure` narrow (convert s :: u))
+        (\b -> convertBack (widen b))
 
 forward :: Optic 'ForwardTotal backward s t a b -> s -> a
 forward (Iso convert _convertBack) x = convert x
