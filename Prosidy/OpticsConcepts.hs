@@ -12,7 +12,7 @@
 {-# LANGUAGE DataKinds #-}
     {- The data kinds extension turns types into kinds and
        data constructors into type constructors. We use this to
-       establish the kinds 'OpticForward' and 'OpticBackward' which
+       establish the kinds 'Presence' and 'Proportion' which
        parameterize the 'Optic' type. -}
 
 {-# LANGUAGE KindSignatures #-}
@@ -31,7 +31,7 @@
 
 module Prosidy.OpticsConcepts
   ( {- * Optic definition -}  Optic ( Iso, Lens, Prism, AffineTraversal ),
-                              OpticForward ( .. ), OpticBackward ( .. ),
+                              Presence ( .. ), Proportion ( .. ),
                               Try ( .. ), Separation ( .. ),
     {- * Operations -}        forward, backward, tryForward, over,
     {- * Isomorphism -}       Iso, Iso',
@@ -39,7 +39,7 @@ module Prosidy.OpticsConcepts
     {- * Prism -}             Prism, Prism',
     {- * Affine traversal -}  AffineTraversal, AffineTraversal',
     {- * Composition -}       opticCompose,
-                              ForwardComposition, BackwardComposition
+                              PresenceComposition, ProportionComposition
   ) where
 
 data Try t a = No t | Ok a
@@ -58,37 +58,16 @@ data Separation t a b =
                    --   a function that constructs a new version of the original
                    --   object with the lens-targeted part replaced by a new value.
 
-data OpticForward = ForwardTotal | ForwardPartial
+data Presence = AlwaysPresent | MayBeMissing
 
-data OpticBackward = BackwardTotal | BackwardReassemble
+data Proportion = EntireThing | PartOfWhole
 
-data Optic (forward :: OpticForward) (backward :: OpticBackward) s t a b
+data Optic (targetPresence :: Presence) (targetProportion :: Proportion) s t a b
   where
-    Iso :: (s -> a) -- ^ Total forward function
-        -> (b -> t) -- ^ Total backward function
-        -> Optic 'ForwardTotal 'BackwardTotal s t a b
-
-    Lens :: (s -> Separation t a b)
-         -> Optic 'ForwardTotal 'BackwardReassemble s t a b
-
-    Prism :: (s -> Try t a) -- ^ Partial forward function
-          -> (b -> t)            -- ^ Total backward function
-          -> Optic 'ForwardPartial 'BackwardTotal s t a b
-
-    AffineTraversal :: (s -> Try t (Separation t a b))
-                    -> Optic 'ForwardPartial 'BackwardReassemble s t a b
-
-type family ForwardComposition a b
-  where
-    ForwardComposition 'ForwardTotal 'ForwardTotal = 'ForwardTotal
-    ForwardComposition 'ForwardPartial _ = 'ForwardPartial
-    ForwardComposition _ 'ForwardPartial = 'ForwardPartial
-
-type family BackwardComposition a b
-  where
-    BackwardComposition 'BackwardTotal 'BackwardTotal = 'BackwardTotal
-    BackwardComposition 'BackwardReassemble _ = 'BackwardReassemble
-    BackwardComposition _ 'BackwardReassemble = 'BackwardReassemble
+    Iso :: (s -> a) -> (b -> t)                        -> Optic 'AlwaysPresent 'EntireThing s t a b
+    Lens :: (s -> Separation t a b)                    -> Optic 'AlwaysPresent 'PartOfWhole s t a b
+    Prism :: (s -> Try t a) -> (b -> t)                -> Optic 'MayBeMissing  'EntireThing s t a b
+    AffineTraversal :: (s -> Try t (Separation t a b)) -> Optic 'MayBeMissing  'PartOfWhole s t a b
 
 -- |
 -- >                ╭───────╮  ╭───────╮     ╭───────────╮     ╭───────╮
@@ -100,8 +79,8 @@ type family BackwardComposition a b
 opticCompose :: forall fore1 back1 fore2 back2 s t u v a b.
        Optic fore1 back1 s t u v
     -> Optic fore2 back2 u v a b
-    -> Optic (ForwardComposition fore1 fore2)
-             (BackwardComposition back2 back2) s t a b
+    -> Optic (PresenceComposition fore1 fore2)
+             (ProportionComposition back2 back2) s t a b
 
 opticCompose (Iso convert1 convertBack1) (Iso convert2 convertBack2) = Iso convert3 convertBack3
   where
@@ -127,20 +106,29 @@ opticCompose (Iso convert convertBack) (Prism narrow widen) =
         )
         (\b -> convertBack (widen b))
 
--- opticCompose (Iso convert convertBack) (AffineTraversal findPart reassemble) =
-    -- AffineTraversal
+type family PresenceComposition a b
+  where
+    PresenceComposition 'AlwaysPresent 'AlwaysPresent = 'AlwaysPresent
+    PresenceComposition 'MayBeMissing _ = 'MayBeMissing
+    PresenceComposition _ 'MayBeMissing = 'MayBeMissing
 
-forward :: Optic 'ForwardTotal backward s t a b -> s -> a
+type family ProportionComposition a b
+  where
+    ProportionComposition 'EntireThing 'EntireThing = 'EntireThing
+    ProportionComposition 'PartOfWhole _ = 'PartOfWhole
+    ProportionComposition _ 'PartOfWhole = 'PartOfWhole
+
+forward :: Optic 'AlwaysPresent targetProportion s t a b -> s -> a
 forward (Iso convert _convertBack) x = convert x
 forward (Lens separate) x = part
   where
     Separation part _ = separate x
 
-backward :: Optic forward 'BackwardTotal s t a b -> b -> t
+backward :: Optic targetPresence 'EntireThing s t a b -> b -> t
 backward (Iso _convert convertBack) x = convertBack x
 backward (Prism _narrow widen) x = widen x
 
-tryForward :: Optic forward backward s t a b -> s -> Try t a
+tryForward :: Optic targetPresence targetProportion s t a b -> s -> Try t a
 tryForward o (s :: s) = case o of
     Iso convert _convertBack -> Ok (convert s)
     Lens separate -> Ok part
@@ -152,7 +140,7 @@ tryForward o (s :: s) = case o of
             No t -> No t
             Ok (Separation part _) -> Ok part
 
-over :: Optic forward backward s t a b -> (a -> b) -> (s -> t)
+over :: Optic targetPresence targetProportion s t a b -> (a -> b) -> (s -> t)
 over o (f :: a -> b) (s :: s) = case o of
     Iso convert convertBack -> convertBack (f (convert s))
     Lens separate -> reassemble (f part)
@@ -167,11 +155,11 @@ over o (f :: a -> b) (s :: s) = case o of
             No t -> t
             Ok (Separation part reassemble) -> reassemble (f part)
 
-type Iso s t a b = Optic 'ForwardTotal 'BackwardTotal s t a b
+type Iso s t a b = Optic 'AlwaysPresent 'EntireThing s t a b
 type Iso' s a = Iso s s a a
-type Lens s t a b = Optic 'ForwardTotal 'BackwardReassemble s t a b
+type Lens s t a b = Optic 'AlwaysPresent 'PartOfWhole s t a b
 type Lens' s a = Lens s s a a
-type Prism s t a b = Optic 'ForwardPartial 'BackwardTotal s t a b
+type Prism s t a b = Optic 'MayBeMissing 'EntireThing s t a b
 type Prism' s a = Prism s s a a
-type AffineTraversal s t a b = Optic 'ForwardPartial 'BackwardReassemble s t a b
+type AffineTraversal s t a b = Optic 'MayBeMissing 'PartOfWhole s t a b
 type AffineTraversal' s a = AffineTraversal s s a a
