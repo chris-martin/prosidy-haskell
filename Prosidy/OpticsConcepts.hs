@@ -45,6 +45,12 @@ module Prosidy.OpticsConcepts
 data Try t a = No t | Ok a
 
 -- | The result of applying a lens.
+--
+-- Represents the separation of s/t into two components:
+--
+-- - 1. a/b
+-- - 2. everything else
+
 data Separation t a b =
     Separation
         a          -- ^ The part of the original object targeted by the lens.
