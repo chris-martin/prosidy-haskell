@@ -1,7 +1,7 @@
 {-# OPTIONS_GHC -Wall #-}
     {- All GHC warnings are enabled. -}
 
---{-# OPTIONS_GHC -Werror #-}
+-- todo {-# OPTIONS_GHC -Werror #-}
     {- This module may not emit any warnings. -}
 
 {-# LANGUAGE GADTs #-}
@@ -32,7 +32,7 @@
 module Prosidy.OpticsConcepts
   ( {- * Optic definition -}  Optic ( Iso, Lens, Prism, AffineTraversal ),
                               OpticForward ( .. ), OpticBackward ( .. ),
-                              OpticTry ( .. ),
+                              Try ( .. ), Separation ( .. ),
     {- * Operations -}        forward, backward, tryForward, over,
     {- * Isomorphism -}       Iso, Iso',
     {- * Lens -}              Lens, Lens',
@@ -42,13 +42,15 @@ module Prosidy.OpticsConcepts
                               ForwardComposition, BackwardComposition
   ) where
 
-data OpticTry t a = OpticFailure t | OpticSuccess a
+data Try t a = No t | Ok a
 
--- bimap :: forall s t a b. (t -> s) -> (a -> b) -> OpticTry t a -> OpticTry s b
--- bimap f g try =
---     case try of
---         OpticFailure (t :: t) -> OpticFailure (f t :: s)
---         OpticSuccess (a :: a) -> OpticSuccess (g a :: b)
+-- | The result of applying a lens.
+data Separation t a b =
+    Separation
+        a          -- ^ The part of the original object targeted by the lens.
+        (b -> t)   -- ^ The remainder of the original object, represented as
+                   --   a function that constructs a new version of the original
+                   --   object with the lens-targeted part replaced by a new value.
 
 data OpticForward = ForwardTotal | ForwardPartial
 
@@ -60,16 +62,14 @@ data Optic (forward :: OpticForward) (backward :: OpticBackward) s t a b
         -> (b -> t) -- ^ Total backward function
         -> Optic 'ForwardTotal 'BackwardTotal s t a b
 
-    Lens :: (s -> a)         -- ^ Total forward function
-         -> (s -> (b -> t))  -- ^ Backward reassembly
+    Lens :: (s -> Separation t a b)
          -> Optic 'ForwardTotal 'BackwardReassemble s t a b
 
-    Prism :: (s -> OpticTry t a) -- ^ Partial forward function
+    Prism :: (s -> Try t a) -- ^ Partial forward function
           -> (b -> t)            -- ^ Total backward function
           -> Optic 'ForwardPartial 'BackwardTotal s t a b
 
-    AffineTraversal :: (s -> OpticTry t a)  -- ^ Partial forward function
-                    -> (s -> (b -> t))      -- ^ Backward reassembly
+    AffineTraversal :: (s -> Try t (Separation t a b))
                     -> Optic 'ForwardPartial 'BackwardReassemble s t a b
 
 type family ForwardComposition a b
@@ -105,19 +105,19 @@ opticCompose (Iso convert1 convertBack1) (Iso convert2 convertBack2) = Iso conve
     convertBack3 :: b -> t
     convertBack3 b = convertBack1 (convertBack2 b :: v)
 
-opticCompose (Iso convert convertBack) (Lens getPart reassemble) = Lens getPart' reassemble'
+opticCompose (Iso convert convertBack) (Lens separate) = Lens separate'
   where
-    getPart' :: s -> a
-    getPart' s = getPart (convert s :: u)
-
-    reassemble' :: s -> b -> t
-    reassemble' s b = convertBack (reassemble (convert s) b)
+    separate' :: s -> Separation t a b
+    separate' s = Separation part reassemble'
+      where
+        Separation part reassemble = separate (convert s :: u)
+        reassemble' b = convertBack (reassemble b)
 
 opticCompose (Iso convert convertBack) (Prism narrow widen) =
     Prism
         (\s -> case narrow (convert s :: u) of
-            OpticFailure (v :: v) -> OpticFailure (convertBack v :: t)
-            OpticSuccess (a :: a) -> OpticSuccess a
+            No (v :: v) -> No (convertBack v :: t)
+            Ok (a :: a) -> Ok a
         )
         (\b -> convertBack (widen b))
 
@@ -126,31 +126,40 @@ opticCompose (Iso convert convertBack) (Prism narrow widen) =
 
 forward :: Optic 'ForwardTotal backward s t a b -> s -> a
 forward (Iso convert _convertBack) x = convert x
-forward (Lens getPart _reassemble) x = getPart x
+forward (Lens separate) x = part
+  where
+    Separation part _ = separate x
 
 backward :: Optic forward 'BackwardTotal s t a b -> b -> t
 backward (Iso _convert convertBack) x = convertBack x
 backward (Prism _narrow widen) x = widen x
 
-tryForward :: Optic forward backward s t a b -> s -> OpticTry t a
+tryForward :: Optic forward backward s t a b -> s -> Try t a
 tryForward o (s :: s) = case o of
-    Iso convert _convertBack -> OpticSuccess (convert s)
-    Lens getPart _reassemble -> OpticSuccess (getPart s)
+    Iso convert _convertBack -> Ok (convert s)
+    Lens separate -> Ok part
+      where
+        Separation part _ = separate s
     Prism narrow _widen -> narrow s
-    AffineTraversal findPart _reassemble -> findPart s
+    AffineTraversal separate ->
+        case (separate s) of
+            No t -> No t
+            Ok (Separation part _) -> Ok part
 
 over :: Optic forward backward s t a b -> (a -> b) -> (s -> t)
 over o (f :: a -> b) (s :: s) = case o of
     Iso convert convertBack -> convertBack (f (convert s))
-    Lens getPart reassemble -> reassemble s (f (getPart s))
+    Lens separate -> reassemble (f part)
+      where
+        Separation part reassemble = separate s
     Prism narrow widen ->
         case (narrow s) of
-            OpticFailure t -> t
-            OpticSuccess a -> widen (f a)
-    AffineTraversal findPart reassemble ->
-        case (findPart s) of
-            OpticFailure t -> t
-            OpticSuccess a -> reassemble s (f a)
+            No t -> t
+            Ok a -> widen (f a)
+    AffineTraversal separate ->
+        case (separate s) of
+            No t -> t
+            Ok (Separation part reassemble) -> reassemble (f part)
 
 type Iso s t a b = Optic 'ForwardTotal 'BackwardTotal s t a b
 type Iso' s a = Iso s s a a

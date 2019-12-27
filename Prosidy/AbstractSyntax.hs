@@ -441,28 +441,29 @@ opticWalk (Iso convert convertBack) walk action (s :: s) =
     (v :: v) <- walk action (convert s :: u)
     return (convertBack v :: t)
 
-opticWalk (Lens getPart reassemble) walk action (s :: s) =
+opticWalk (Lens separate) walk action (s :: s) =
   do
-    (v :: v) <- walk action (getPart s :: u)
-    return (reassemble s v :: t)
+    let Separation (u :: u) reassemble = separate s
+    (v :: v) <- walk action u
+    return (reassemble v :: t)
 
 opticWalk (Prism narrow widen) walk action (s :: s) =
     case (narrow s) of
-        OpticFailure (t :: t) -> return t
-        OpticSuccess (u :: u) ->
+        No (t :: t) -> return t
+        Ok (u :: u) ->
           do
             (v :: v) <- walk action u
             return (widen v :: t)
 
 
-opticWalk (AffineTraversal findPart reassemble) walk action (s :: s) =
+opticWalk (AffineTraversal separate) walk action (s :: s) =
   do
-    case (findPart s) of
-        OpticFailure (t :: t) -> return t
-        OpticSuccess (u :: u) ->
+    case (separate s) of
+        No (t :: t) -> return t
+        Ok (Separation (u :: u) reassemble) ->
           do
             (v :: v) <- walk action u
-            return (reassemble s v :: t)
+            return (reassemble v :: t)
 
 walkWalk :: forall s t u v a b. Walk s t u v -> Walk u v a b -> Walk s t a b
 walkWalk traverse1 traverse2 action (s :: s) = traverse1 (traverse2 action) s
@@ -483,8 +484,9 @@ documentHeadLens ::
 
 documentHeadLens =
     Lens
-        (\(Document head _) -> head)
-        (\(Document _ body) head -> Document head body)
+        (\(Document head body) ->
+            Separation head (\head' -> Document head' body)
+        )
 
 documentBodyLens ::
     Lens'
@@ -493,8 +495,9 @@ documentBodyLens ::
 
 documentBodyLens =
     Lens
-        (\(Document _ body) -> body)
-        (\(Document head _) body -> Document head body)
+        (\(Document head body) ->
+            Separation body (\body' -> Document head body')
+        )
 
 prosidyListIso ::
     Iso'
