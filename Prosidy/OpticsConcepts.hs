@@ -85,11 +85,11 @@ type family BackwardComposition a b
     BackwardComposition _ 'BackwardReassemble = 'BackwardReassemble
 
 -- |
--- >                ┌───────┐  ┌───────┐     ┌───────────┐     ┌───────┐
+-- >                ╭───────╮  ╭───────╮     ╭───────────╮     ╭───────╮
 -- >                │ s → u │  │ u → a │     │ s → u → a │     │ s → a │
 -- >  opticCompose  │     ↓ │  │     ↓ │  =  │         ↓ │  =  │     ↓ │
 -- >                │ t ← v │  │ t ← b │     │ t ← v ← b │     │ t ← b │
--- >                └───────┘  └───────┘     └───────────┘     └───────┘
+-- >                ╰───────╯  ╰───────╯     ╰───────────╯     ╰───────╯
 
 opticCompose :: forall fore1 back1 fore2 back2 s t u v a b.
        Optic fore1 back1 s t u v
