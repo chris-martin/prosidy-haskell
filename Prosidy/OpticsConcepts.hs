@@ -38,7 +38,7 @@ module Prosidy.OpticsConcepts
     {- * Try -}               Try ( .. ), recover, overNo, overOk, overTry,
     {- * Separation -}        Separation ( .. ), part, reassemble,
                               afterReassemble, beforeReassemble,
-    {- * Operations -}        forward, backward, tryForward, over,
+    {- * Operations -}        forward, Forward, backward, over,
     {- * Isomorphism -}       Iso, Iso',
     {- * Lens -}              Lens, Lens',
     {- * Prism -}             Prism, Prism',
@@ -106,10 +106,11 @@ data Proportion = EntireThing | PartOfWhole
 
 -- |
 -- >  ╭──────────╮
--- >  │  a  → b  │
--- >  │       ↓  │
--- >  │  a' ← b' │
+-- >  │  a    b  │
+-- >  │          │
+-- >  │  a'   b' │
 -- >  ╰──────────╯
+
 data Optic (presence :: Presence) (proportion :: Maybe Proportion) a a' b b'
   where
     Iso :: (a -> b) -> (b' -> a')                         -> Optic 'AlwaysPresent ('Just 'EntireThing)  a a' b b'
@@ -119,11 +120,11 @@ data Optic (presence :: Presence) (proportion :: Maybe Proportion) a a' b b'
     Getter :: (a -> b)                                    -> Optic 'AlwaysPresent 'Nothing              a a' b b'
 
 -- |
--- >                ╭──────────╮  ╭──────────╮     ╭───────────────╮     ╭──────────╮
--- >                │  a  → b  │  │  b  → c  │     │  a  → b  → c  │     │  a  → c  │
--- >  opticCompose  │       ↓  │  │       ↓  │  =  │            ↓  │  =  │       ↓  │
--- >                │  a' ← b' │  │  b' ← c' │     │  a' ← b' ← c' │     │  a' ← c' │
--- >                ╰──────────╯  ╰──────────╯     ╰───────────────╯     ╰──────────╯
+-- >                    ╭──────────╮   ╭──────────╮   ╭──────────╮
+-- >                    │  a    b  │   │  b    c  │   │  a    c  │
+-- >  opticCompose  ::  │          │ → │          │ → │          │
+-- >                    │  a'   b' │   │  b'   c' │   │  a'   c' │
+-- >                    ╰──────────╯   ╰──────────╯   ╰──────────╯
 
 opticCompose :: Optic abPresence abProportion a a' b b'
              -> Optic bcPresence bcProportion b b' c c'
@@ -154,21 +155,42 @@ type family ProportionMaybeComposition a b
     ProportionMaybeComposition ('Just x) ('Just y) = ('Just (ProportionComposition x y))
     ProportionMaybeComposition _ _ = 'Nothing
 
-forward :: Getter proportion a a' b b' -> a -> b
+type family Forward presence a a' b
+  where
+    Forward 'AlwaysPresent a a' b = (a -> b)
+    Forward 'MayBeMissing a a' b = (a -> Try a' b)
+
+-- |
+-- >               ╭──────────╮   ╭──────────╮
+-- >               │  a    b  │   │  a  → b  │
+-- >  forward  ::  │          │ → │  ↓       │
+-- >               │  a'   b' │   │  a'      │
+-- >               ╰──────────╯   ╰──────────╯
+
+forward :: Optic presence proportion a a' b b' -> Forward presence a a' b
 forward (Iso ab _ab') = ab
 forward (Lens abSep) = abSep ▶ part
+forward (Prism abTry _ab') = abTry
+forward (AffineTraversal abTrySep) = abTrySep ▶ overOk part
 forward (Getter ab) = ab
+
+-- |
+-- >                ╭──────────╮   ╭──────────╮
+-- >                │  a    b  │   │          │
+-- >  backward  ::  │          │ → │          │
+-- >                │  a'   b' │   │  a' ← b' │
+-- >                ╰──────────╯   ╰──────────╯
 
 backward :: Optic presence ('Just 'EntireThing) a a' b b' -> b' -> a'
 backward (Iso _ab ab') = ab'
 backward (Prism _abTry ab') = ab'
 
-tryForward :: Optic presence proportion a a' b b' -> a -> Try a' b
-tryForward (Iso ab _ab') = ab ▶ Ok
-tryForward (Lens abSep) = abSep ▶ part ▶ Ok
-tryForward (Prism abTry _ab') = abTry
-tryForward (AffineTraversal abTrySep) = abTrySep ▶ overOk part
-tryForward (Getter ab) = ab ▶ Ok
+-- |
+-- >            ╭──────────╮   ╭──────────╮   ╭──────────╮
+-- >            │  a    b  │   │       b  │   │  a       │
+-- >  over  ::  │          │ → │       ↓  │ → │  ↓       │
+-- >            │  a'   b' │   │       b' │   │  a'      │
+-- >            ╰──────────╯   ╰──────────╯   ╰──────────╯
 
 over :: Optic presence ('Just proportion) a a' b b' -> (b -> b') -> (a -> a')
 over (Iso ab ab') f = ab ▶ f ▶ ab'
