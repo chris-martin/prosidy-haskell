@@ -29,10 +29,14 @@
 
 {-# LANGUAGE TypeFamilies #-}
 
+{-# LANGUAGE LambdaCase #-}
+
 module Prosidy.OpticsConcepts
   ( {- * Optic definition -}  Optic ( Iso, Lens, Prism, AffineTraversal ),
                               Presence ( .. ), Proportion ( .. ),
-                              Try ( .. ), Separation ( .. ),
+    {- * Try -}               Try ( .. ), recover, overNo, overOk, overTry,
+    {- * Separation -}        Separation ( .. ), part, reassemble,
+                              afterReassemble, beforeReassemble,
     {- * Operations -}        forward, backward, tryForward, over,
     {- * Isomorphism -}       Iso, Iso',
     {- * Lens -}              Lens, Lens',
@@ -42,69 +46,83 @@ module Prosidy.OpticsConcepts
                               PresenceComposition, ProportionComposition
   ) where
 
-data Try t a = No t | Ok a
+-- | Function composition: @ab ▶ bc@ converts from @a@ to @b@, then from @b@ to @c@.
+(▶) :: (a -> b) -> (b -> c) -> (a -> c)
+(ab ▶ bc) a = bc (ab (a))
+
+(◀) :: (t1 -> t2) -> (t3 -> t1) -> t3 -> t2
+(ab ◀ bc) c = ab (bc (c))
+
+data Try a b = No a | Ok b
+
+recover :: Try a a -> a
+recover = \case No a -> a; Ok a -> a
+
+overNo :: (a -> a') -> Try a b -> Try a' b
+overNo f = \case No a -> No (f a); Ok b -> Ok b
+
+overOk :: (b -> b') -> Try a b -> Try a b'
+overOk f = \case No a -> No a; Ok b -> Ok (f b)
+
+overTry :: (a -> a') -> (b -> b') -> Try a b -> Try a' b'
+overTry f g = \case No a -> No (f a); Ok b -> Ok (g b)
 
 -- | The result of applying a lens.
 --
--- Represents the separation of s/t into two components:
+-- Represents the separation of /a/ into two components:
 --
--- - 1. a/b
+-- - 1. /b/
 -- - 2. everything else
 
-data Separation t a b =
+data Separation a' b b' =
     Separation
-        a          -- ^ The part of the original object targeted by the lens.
-        (b -> t)   -- ^ The remainder of the original object, represented as
+        b          -- ^ The part of the original object targeted by the lens.
+        (b' -> a') -- ^ The remainder of the original object, represented as
                    --   a function that constructs a new version of the original
                    --   object with the lens-targeted part replaced by a new value.
+
+part :: Separation a b b' -> b
+part (Separation b _) = b
+
+reassemble :: Separation a b b -> a
+reassemble (Separation b ab') = ab' b
+
+-- | Modifies a separation to perform an additional transformation after reassembly.
+afterReassemble :: (b' -> a') -> Separation b' c c' -> Separation a' c c'
+afterReassemble f (Separation b bc') = Separation b (f ◀ bc')
+
+-- | Modifies a separation to perform a transformation on the reassembly parameter.
+beforeReassemble :: (a -> b') -> Separation a' b b' -> Separation a' b a
+beforeReassemble f (Separation b bc') = Separation b (f ▶ bc')
 
 data Presence = AlwaysPresent | MayBeMissing
 
 data Proportion = EntireThing | PartOfWhole
 
-data Optic (targetPresence :: Presence) (targetProportion :: Proportion) s t a b
+data Optic (presence :: Presence) (proportion :: Proportion) a a' b b'
   where
-    Iso :: (s -> a) -> (b -> t)                        -> Optic 'AlwaysPresent 'EntireThing s t a b
-    Lens :: (s -> Separation t a b)                    -> Optic 'AlwaysPresent 'PartOfWhole s t a b
-    Prism :: (s -> Try t a) -> (b -> t)                -> Optic 'MayBeMissing  'EntireThing s t a b
-    AffineTraversal :: (s -> Try t (Separation t a b)) -> Optic 'MayBeMissing  'PartOfWhole s t a b
+    Iso :: (a -> b) -> (b' -> a')                         -> Optic 'AlwaysPresent 'EntireThing a a' b b'
+    Lens :: (a -> Separation a' b b')                     -> Optic 'AlwaysPresent 'PartOfWhole a a' b b'
+    Prism :: (a -> Try a' b) -> (b' -> a')                -> Optic 'MayBeMissing  'EntireThing a a' b b'
+    AffineTraversal :: (a -> Try a' (Separation a' b b')) -> Optic 'MayBeMissing  'PartOfWhole a a' b b'
 
 -- |
--- >                ╭───────╮  ╭───────╮     ╭───────────╮     ╭───────╮
--- >                │ s → u │  │ u → a │     │ s → u → a │     │ s → a │
--- >  opticCompose  │     ↓ │  │     ↓ │  =  │         ↓ │  =  │     ↓ │
--- >                │ t ← v │  │ t ← b │     │ t ← v ← b │     │ t ← b │
--- >                ╰───────╯  ╰───────╯     ╰───────────╯     ╰───────╯
+-- >                ╭──────────╮  ╭──────────╮     ╭───────────────╮     ╭──────────╮
+-- >                │  a  → b  │  │  b  → c  │     │  a  → b  → c  │     │  a  → c  │
+-- >  opticCompose  │       ↓  │  │       ↓  │  =  │            ↓  │  =  │       ↓  │
+-- >                │  a' ← b' │  │  b' ← c' │     │  a' ← b' ← c' │     │  a' ← c' │
+-- >                ╰──────────╯  ╰──────────╯     ╰───────────────╯     ╰──────────╯
 
-opticCompose :: forall fore1 back1 fore2 back2 s t u v a b.
-       Optic fore1 back1 s t u v
-    -> Optic fore2 back2 u v a b
-    -> Optic (PresenceComposition fore1 fore2)
-             (ProportionComposition back2 back2) s t a b
+opticCompose :: Optic abPresence abProportion a a' b b'
+             -> Optic bcPresence bcProportion b b' c c'
+             -> Optic (PresenceComposition abPresence bcPresence)
+                      (ProportionComposition abProportion bcProportion)
+                      a a' c c'
 
-opticCompose (Iso convert1 convertBack1) (Iso convert2 convertBack2) = Iso convert3 convertBack3
-  where
-    convert3 :: s -> a
-    convert3 s = convert2 (convert1 s :: u)
-
-    convertBack3 :: b -> t
-    convertBack3 b = convertBack1 (convertBack2 b :: v)
-
-opticCompose (Iso convert convertBack) (Lens separate) = Lens separate'
-  where
-    separate' :: s -> Separation t a b
-    separate' s = Separation part reassemble'
-      where
-        Separation part reassemble = separate (convert s :: u)
-        reassemble' b = convertBack (reassemble b)
-
-opticCompose (Iso convert convertBack) (Prism narrow widen) =
-    Prism
-        (\s -> case narrow (convert s :: u) of
-            No (v :: v) -> No (convertBack v :: t)
-            Ok (a :: a) -> Ok a
-        )
-        (\b -> convertBack (widen b))
+opticCompose (Iso ab ab') (Iso bc bc') = Iso (ab ▶ bc) (ab' ◀ bc')
+opticCompose (Iso ab ab') (Lens bcSep) = Lens (ab ▶ bcSep ▶ (\(Separation c bc') -> Separation c (ab' ◀ bc')))
+opticCompose (Iso ab ab') (Prism bcTry bc') = Prism (ab ▶ bcTry ▶ overNo ab') (ab' ◀ bc')
+opticCompose (Iso ab ab') (AffineTraversal bcTrySep) = AffineTraversal (ab ▶ bcTrySep ▶ overTry ab' (afterReassemble ab'))
 
 type family PresenceComposition a b
   where
@@ -118,48 +136,31 @@ type family ProportionComposition a b
     ProportionComposition 'PartOfWhole _ = 'PartOfWhole
     ProportionComposition _ 'PartOfWhole = 'PartOfWhole
 
-forward :: Optic 'AlwaysPresent targetProportion s t a b -> s -> a
-forward (Iso convert _convertBack) x = convert x
-forward (Lens separate) x = part
-  where
-    Separation part _ = separate x
+forward :: Optic 'AlwaysPresent proportion a a' b b' -> a -> b
+forward (Iso ab _ab') = ab
+forward (Lens abSep) = abSep ▶ part
 
-backward :: Optic targetPresence 'EntireThing s t a b -> b -> t
-backward (Iso _convert convertBack) x = convertBack x
-backward (Prism _narrow widen) x = widen x
+backward :: Optic presence 'EntireThing a a' b b' -> b' -> a'
+backward (Iso _ab ab') = ab'
+backward (Prism _abTry ab') = ab'
 
-tryForward :: Optic targetPresence targetProportion s t a b -> s -> Try t a
-tryForward o (s :: s) = case o of
-    Iso convert _convertBack -> Ok (convert s)
-    Lens separate -> Ok part
-      where
-        Separation part _ = separate s
-    Prism narrow _widen -> narrow s
-    AffineTraversal separate ->
-        case (separate s) of
-            No t -> No t
-            Ok (Separation part _) -> Ok part
+tryForward :: Optic presence proportion a a' b b' -> a -> Try a' b
+tryForward (Iso ab _ab') = ab ▶ Ok
+tryForward (Lens abSep) = abSep ▶ part ▶ Ok
+tryForward (Prism abTry _ab') = abTry
+tryForward (AffineTraversal abTrySep) = abTrySep ▶ overOk part
 
-over :: Optic targetPresence targetProportion s t a b -> (a -> b) -> (s -> t)
-over o (f :: a -> b) (s :: s) = case o of
-    Iso convert convertBack -> convertBack (f (convert s))
-    Lens separate -> reassemble (f part)
-      where
-        Separation part reassemble = separate s
-    Prism narrow widen ->
-        case (narrow s) of
-            No t -> t
-            Ok a -> widen (f a)
-    AffineTraversal separate ->
-        case (separate s) of
-            No t -> t
-            Ok (Separation part reassemble) -> reassemble (f part)
+over :: Optic presence proportion a a' b b' -> (b -> b') -> (a -> a')
+over (Iso ab ab') f = ab ▶ f ▶ ab'
+over (Lens abSep) f = abSep ▶ beforeReassemble f ▶ reassemble
+over (Prism abTry ab') f = abTry ▶ overOk (f ▶ ab') ▶ recover
+over (AffineTraversal abTrySep) f = abTrySep ▶ overOk (beforeReassemble f ▶ reassemble) ▶ recover
 
-type Iso s t a b = Optic 'AlwaysPresent 'EntireThing s t a b
-type Iso' s a = Iso s s a a
-type Lens s t a b = Optic 'AlwaysPresent 'PartOfWhole s t a b
-type Lens' s a = Lens s s a a
-type Prism s t a b = Optic 'MayBeMissing 'EntireThing s t a b
-type Prism' s a = Prism s s a a
-type AffineTraversal s t a b = Optic 'MayBeMissing 'PartOfWhole s t a b
-type AffineTraversal' s a = AffineTraversal s s a a
+type Iso a a' b b' = Optic 'AlwaysPresent 'EntireThing a a' b b'
+type Iso' a b = Iso a a b b
+type Lens a a' b b' = Optic 'AlwaysPresent 'PartOfWhole a a' b b'
+type Lens' a b = Lens a a b b
+type Prism a a' b b' = Optic 'MayBeMissing 'EntireThing a a' b b'
+type Prism' a b = Prism a a b b
+type AffineTraversal a a' b b' = Optic 'MayBeMissing 'PartOfWhole a a' b b'
+type AffineTraversal' a b = AffineTraversal a a b b
