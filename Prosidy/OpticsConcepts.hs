@@ -105,11 +105,11 @@ data Presence = AlwaysPresent | MayBeMissing
 data Proportion = EntireThing | PartOfWhole
 
 -- |
--- >  ╭──────────╮  ╭──────────╮     ╭───────────────╮     ╭──────────╮
--- >  │  a  → b  │  │  b  → c  │     │  a  → b  → c  │     │  a  → c  │
--- >  │       ↓  │  │       ↓  │  =  │            ↓  │  =  │       ↓  │
--- >  │  a' ← b' │  │  b' ← c' │     │  a' ← b' ← c' │     │  a' ← c' │
--- >  ╰──────────╯  ╰──────────╯     ╰───────────────╯     ╰──────────╯
+-- >  ╭──────────╮
+-- >  │  a  → b  │
+-- >  │       ↓  │
+-- >  │  a' ← b' │
+-- >  ╰──────────╯
 data Optic (presence :: Presence) (proportion :: Maybe Proportion) a a' b b'
   where
     Iso :: (a -> b) -> (b' -> a')                         -> Optic 'AlwaysPresent ('Just 'EntireThing)  a a' b b'
