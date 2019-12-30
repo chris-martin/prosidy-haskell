@@ -37,6 +37,7 @@ module Prosidy.OpticsConcepts
     {- * Try -}               Try ( .. ), recover, overNo, overOk, overTry,
     {- * Separation -}        Separation ( .. ), part, reassemble,
                               afterReassemble, beforeReassemble,
+    {- * Try separation -}    TrySeparation,
     {- * Operations -}        forward, Forward, backward, over,
     {- * Isomorphism -}       Iso, Iso',
     {- * Lens -}              Lens, Lens',
@@ -99,6 +100,8 @@ afterReassemble f (Separation b bc') = Separation b (f ◀ bc')
 beforeReassemble :: (a -> b') -> Separation a' b b' -> Separation a' b a
 beforeReassemble f (Separation b bc') = Separation b (f ▶ bc')
 
+type TrySeparation a' b b' = Try a' (Separation a' b b')
+
 data Presence = AlwaysPresent | MayBeMissing
 
 data Proportion = EntireThing | PartOfWhole
@@ -112,10 +115,10 @@ data Proportion = EntireThing | PartOfWhole
 
 data Optic (presence :: Presence) (proportion :: Proportion) a a' b b'
   where
-    Iso :: (a -> b) -> (b' -> a')                         -> Optic 'AlwaysPresent 'EntireThing  a a' b b'
-    Lens :: (a -> Separation a' b b')                     -> Optic 'AlwaysPresent 'PartOfWhole  a a' b b'
-    Prism :: (a -> Try a' b) -> (b' -> a')                -> Optic 'MayBeMissing  'EntireThing  a a' b b'
-    AffineTraversal :: (a -> Try a' (Separation a' b b')) -> Optic 'MayBeMissing  'PartOfWhole  a a' b b'
+    Iso :: (a -> b) -> (b' -> a')                   -> Optic 'AlwaysPresent 'EntireThing  a a' b b'
+    Lens :: (a -> Separation a' b b')               -> Optic 'AlwaysPresent 'PartOfWhole  a a' b b'
+    Prism :: (a -> Try a' b) -> (b' -> a')          -> Optic 'MayBeMissing  'EntireThing  a a' b b'
+    AffineTraversal :: (a -> TrySeparation a' b b') -> Optic 'MayBeMissing  'PartOfWhole  a a' b b'
 
 -- |
 -- >                    ╭──────────╮   ╭──────────╮   ╭──────────╮
