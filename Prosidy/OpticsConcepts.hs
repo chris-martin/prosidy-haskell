@@ -32,8 +32,7 @@
 {-# LANGUAGE LambdaCase #-}
 
 module Prosidy.OpticsConcepts
-  ( {- * Optic definition -}  Optic ( Iso, Lens, Prism, AffineTraversal,
-                                      Getter ),
+  ( {- * Optic definition -}  Optic ( Iso, Lens, Prism, AffineTraversal ),
                               Presence ( .. ), Proportion ( .. ),
     {- * Try -}               Try ( .. ), recover, overNo, overOk, overTry,
     {- * Separation -}        Separation ( .. ), part, reassemble,
@@ -111,13 +110,12 @@ data Proportion = EntireThing | PartOfWhole
 -- >  │  a'   b' │
 -- >  ╰──────────╯
 
-data Optic (presence :: Presence) (proportion :: Maybe Proportion) a a' b b'
+data Optic (presence :: Presence) (proportion :: Proportion) a a' b b'
   where
-    Iso :: (a -> b) -> (b' -> a')                         -> Optic 'AlwaysPresent ('Just 'EntireThing)  a a' b b'
-    Lens :: (a -> Separation a' b b')                     -> Optic 'AlwaysPresent ('Just 'PartOfWhole)  a a' b b'
-    Prism :: (a -> Try a' b) -> (b' -> a')                -> Optic 'MayBeMissing  ('Just 'EntireThing)  a a' b b'
-    AffineTraversal :: (a -> Try a' (Separation a' b b')) -> Optic 'MayBeMissing  ('Just 'PartOfWhole)  a a' b b'
-    Getter :: (a -> b)                                    -> Optic 'AlwaysPresent 'Nothing              a a' b b'
+    Iso :: (a -> b) -> (b' -> a')                         -> Optic 'AlwaysPresent 'EntireThing  a a' b b'
+    Lens :: (a -> Separation a' b b')                     -> Optic 'AlwaysPresent 'PartOfWhole  a a' b b'
+    Prism :: (a -> Try a' b) -> (b' -> a')                -> Optic 'MayBeMissing  'EntireThing  a a' b b'
+    AffineTraversal :: (a -> Try a' (Separation a' b b')) -> Optic 'MayBeMissing  'PartOfWhole  a a' b b'
 
 -- |
 -- >                    ╭──────────╮   ╭──────────╮   ╭──────────╮
@@ -129,14 +127,13 @@ data Optic (presence :: Presence) (proportion :: Maybe Proportion) a a' b b'
 opticCompose :: Optic abPresence abProportion a a' b b'
              -> Optic bcPresence bcProportion b b' c c'
              -> Optic (PresenceComposition abPresence bcPresence)
-                      (ProportionMaybeComposition abProportion bcProportion)
+                      (ProportionComposition abProportion bcProportion)
                       a a' c c'
 
 opticCompose (Iso ab ab') (Iso bc bc') = Iso (ab ▶ bc) (ab' ◀ bc')
 opticCompose (Iso ab ab') (Lens bcSep) = Lens (ab ▶ bcSep ▶ afterReassemble ab')
 opticCompose (Iso ab ab') (Prism bcTry bc') = Prism (ab ▶ bcTry ▶ overNo ab') (ab' ◀ bc')
 opticCompose (Iso ab ab') (AffineTraversal bcTrySep) = AffineTraversal (ab ▶ bcTrySep ▶ overTry ab' (afterReassemble ab'))
-opticCompose (Iso ab _ab') (Getter bc) = Getter (ab ▶ bc)
 
 type family PresenceComposition a b
   where
@@ -172,7 +169,6 @@ forward (Iso ab _ab') = ab
 forward (Lens abSep) = abSep ▶ part
 forward (Prism abTry _ab') = abTry
 forward (AffineTraversal abTrySep) = abTrySep ▶ overOk part
-forward (Getter ab) = ab
 
 -- |
 -- >                ╭──────────╮   ╭──────────╮
@@ -181,7 +177,7 @@ forward (Getter ab) = ab
 -- >                │  a'   b' │   │  a' ← b' │
 -- >                ╰──────────╯   ╰──────────╯
 
-backward :: Optic presence ('Just 'EntireThing) a a' b b' -> b' -> a'
+backward :: Optic presence 'EntireThing a a' b b' -> b' -> a'
 backward (Iso _ab ab') = ab'
 backward (Prism _abTry ab') = ab'
 
@@ -192,19 +188,19 @@ backward (Prism _abTry ab') = ab'
 -- >            │  a'   b' │   │       b' │   │  a'      │
 -- >            ╰──────────╯   ╰──────────╯   ╰──────────╯
 
-over :: Optic presence ('Just proportion) a a' b b' -> (b -> b') -> (a -> a')
+over :: Optic presence proportion a a' b b' -> (b -> b') -> (a -> a')
 over (Iso ab ab') f = ab ▶ f ▶ ab'
 over (Lens abSep) f = abSep ▶ beforeReassemble f ▶ reassemble
 over (Prism abTry ab') f = abTry ▶ overOk (f ▶ ab') ▶ recover
 over (AffineTraversal abTrySep) f = abTrySep ▶ overOk (beforeReassemble f ▶ reassemble) ▶ recover
 
-type Iso a a' b b' = Optic 'AlwaysPresent ('Just 'EntireThing) a a' b b'
+type Iso a a' b b' = Optic 'AlwaysPresent 'EntireThing a a' b b'
 type Iso' a b = Iso a a b b
-type Lens a a' b b' = Optic 'AlwaysPresent ('Just 'PartOfWhole) a a' b b'
+type Lens a a' b b' = Optic 'AlwaysPresent 'PartOfWhole a a' b b'
 type Lens' a b = Lens a a b b
-type Prism a a' b b' = Optic 'MayBeMissing ('Just 'EntireThing) a a' b b'
+type Prism a a' b b' = Optic 'MayBeMissing 'EntireThing a a' b b'
 type Prism' a b = Prism a a b b
-type AffineTraversal a a' b b' = Optic 'MayBeMissing ('Just 'PartOfWhole) a a' b b'
+type AffineTraversal a a' b b' = Optic 'MayBeMissing 'PartOfWhole a a' b b'
 type AffineTraversal' a b = AffineTraversal a a b b
 type Getter proportion a a' b b' = Optic 'AlwaysPresent proportion a a' b b'
 type Getter' proportion a b = Getter proportion a a b b
