@@ -67,7 +67,7 @@ module Prosidy.AbstractSyntax
     {- * Fun with AST -} documentHeadLens, documentBodyLens,
                          prosidyListIso,
     -------------------------------------------------------------------
-    {- * AST walking -}  Walk, Walk', nilWalk, idWalk, opticWalk,
+    {- * AST walking -}  Walk ( Walk ), nilWalk, idWalk,
                          InlineDirection ( LeftToRight, RightToLeft ),
                          BlockDirection ( TopToBottom, BottomToTop ),
                          TreeDirection ( RootToLeaf, LeafToRoot ),
@@ -397,8 +397,8 @@ class ListWalk list
 
 instance ListWalk []
   where
-    listWalk ListForward = Prelude.traverse
-    listWalk ListBackward = \action xs -> Prelude.traverse action (List.reverse xs)
+    listWalk ListForward = Walk Prelude.traverse
+    listWalk ListBackward = Walk (\action xs -> Prelude.traverse action (List.reverse xs))
 
 class Functor dict => DictBuilding (k :: Type) (dict :: Type -> Type) | dict -> k
   where
@@ -430,55 +430,64 @@ instance (ListBuilding list) => DictBuilding k (AssociationList list k)
 
 ---  Walk concept  ---
 
-type Walk s t a b = forall f. (Monad f) => (a -> f b) -> s -> f t
-type Walk' s a = Walk s s a a
+data Walk a a' b b' = Walk (forall f. (Monad f) => (b -> f b') -> a -> f a')
 
-opticWalk :: forall forward backward s t u v a b.
-    Optic forward backward s t u v -> Walk u v a b -> Walk s t a b
+applyWalk :: Monad f => Walk a a' b b' -> (b -> f b') -> a -> f a'
+applyWalk (Walk walk) f a = walk f a
 
-opticWalk (Iso convert convertBack) walk action (s :: s) =
-  do
-    (v :: v) <- walk action (convert s :: u)
-    return (convertBack v :: t)
+instance Optic Walk
 
-opticWalk (Lens separate) walk action (s :: s) =
-  do
-    let Separation (u :: u) reassemble = separate s
-    (v :: v) <- walk action u
-    return (reassemble v :: t)
+instance OpticCompose Iso Walk Walk
+  where
+    opticCompose (Iso convert convertBack) (Walk walk) = Walk $ \action s ->
+      do
+        v <- walk action (convert s)
+        return (convertBack v)
 
-opticWalk (Prism narrow widen) walk action (s :: s) =
-    case (narrow s) of
-        No (t :: t) -> return t
-        Ok (u :: u) ->
-          do
-            (v :: v) <- walk action u
-            return (widen v :: t)
+instance OpticCompose Lens Walk Walk
+  where
+    opticCompose (Lens separate) (Walk walk) = Walk $ \action s ->
+      do
+        let Separation u r = separate s
+        v <- walk action u
+        return (r v)
 
+instance OpticCompose Prism Walk Walk
+  where
+    opticCompose (Prism narrow widen) (Walk walk) = Walk $ \action s ->
+        case (narrow s) of
+            No t -> return t
+            Ok u ->
+              do
+                v <- walk action u
+                return (widen v)
 
-opticWalk (AffineTraversal separate) walk action (s :: s) =
-  do
-    case (separate s) of
-        No (t :: t) -> return t
-        Ok (Separation (u :: u) reassemble) ->
-          do
-            (v :: v) <- walk action u
-            return (reassemble v :: t)
+instance OpticCompose AffineTraversal Walk Walk
+  where
+    opticCompose (AffineTraversal separate) (Walk walk) = Walk $ \action s ->
+      do
+        case (separate s) of
+            No t -> return t
+            Ok (Separation u r) ->
+              do
+                v <- walk action u
+                return (r v)
 
-walkWalk :: forall s t u v a b. Walk s t u v -> Walk u v a b -> Walk s t a b
-walkWalk traverse1 traverse2 action (s :: s) = traverse1 (traverse2 action) s
+instance OpticCompose Walk Walk Walk
+  where
+    opticCompose (Walk x) (Walk y) = Walk (\action s -> x (y action) s)
 
 nilWalk :: Walk s s a b
-nilWalk _ s = pure s
+nilWalk = Walk $ \_action s -> pure s
 
-idWalk :: Walk' s s
-idWalk f s = f s
+idWalk :: Simple Walk s s
+idWalk = Walk $ \action s -> action s
 
 
 ---  Various basic AST manipulations  ---
 
 documentHeadLens ::
-    Lens'
+    Simple Lens
         (Prosidy f ('Context 'One 'Root))
         (Prosidy f ('Context 'One 'Meta))
 
@@ -489,7 +498,7 @@ documentHeadLens =
         )
 
 documentBodyLens ::
-    Lens'
+    Simple Lens
         (Prosidy f ('Context 'One 'Root))
         (Prosidy f ('Context 'Many 'Block))
 
@@ -500,7 +509,7 @@ documentBodyLens =
         )
 
 prosidyListIso ::
-    Iso'
+    Simple Iso
         (Prosidy f ('Context 'Many l))
         (List f (Prosidy f ('Context 'One l)))
 
@@ -518,17 +527,17 @@ data InlineDirection = LeftToRight | RightToLeft
 prosidyListWalk :: ListWalk (List f) =>
     ListDirection
     ->
-    Walk' (Prosidy f ('Context 'Many l))
-          (Prosidy f ('Context 'One l))
+    Simple Walk (Prosidy f ('Context 'Many l))
+                (Prosidy f ('Context 'One l))
 
 prosidyListWalk direction =
-    prosidyListIso `opticWalk` listWalk direction
+    prosidyListIso `opticCompose` listWalk direction
 
 blockChildrenWalk ::
-    Walk' (Prosidy f ('Context 'One 'Block))
-          (Prosidy f ('Context 'Many 'Block))
+    Simple Walk (Prosidy f ('Context 'One 'Block))
+                (Prosidy f ('Context 'Many 'Block))
 
-blockChildrenWalk action block =
+blockChildrenWalk = Walk $ \action block ->
     case block of
         TagBlock name attrs children ->
             TagBlock name attrs `fmap` action children
@@ -537,14 +546,14 @@ blockChildrenWalk action block =
 eachBlockChild :: ListWalk (List f) =>
     BlockDirection
     ->
-    Walk' (Prosidy f ('Context 'One 'Block))
-          (Prosidy f ('Context 'One 'Block))
+    Simple Walk (Prosidy f ('Context 'One 'Block))
+                (Prosidy f ('Context 'One 'Block))
 
 eachBlockChild blockDirection =
-    blockChildrenWalk `walkWalk`
+    blockChildrenWalk `opticCompose`
     prosidyListWalk (blockListDirectionIso `forward` blockDirection)
 
-blockListDirectionIso :: Iso' BlockDirection ListDirection
+blockListDirectionIso :: Simple Iso BlockDirection ListDirection
 blockListDirectionIso =
     Iso
         (\case TopToBottom -> ListForward
@@ -559,33 +568,33 @@ class BlockWalk size level
         ->
         BlockDirection
         ->
-        Walk' (Prosidy f ('Context size level))
-              (Prosidy f ('Context 'One 'Block))
+        Simple Walk (Prosidy f ('Context size level))
+                    (Prosidy f ('Context 'One 'Block))
 
 instance BlockWalk 'One 'Root
   where
     blockWalk treeDirection blockDirection =
-        documentBodyLens `opticWalk`
+        documentBodyLens `opticCompose`
         blockWalk treeDirection blockDirection
 
 instance BlockWalk 'One 'Block
   where
-    blockWalk treeDirection blockDirection action block =
+    blockWalk treeDirection blockDirection = Walk $ \action block ->
         case treeDirection of
             RootToLeaf ->
               do
                 block' <- action block
-                eachBlockChild blockDirection action block'
+                applyWalk (eachBlockChild blockDirection) action block'
             LeafToRoot ->
               do
-                block' <- eachBlockChild blockDirection action block
+                block' <- applyWalk (eachBlockChild blockDirection) action block
                 action block'
 
 instance BlockWalk 'Many 'Block
   where
     blockWalk treeDirection blockDirection =
         prosidyListWalk (blockListDirectionIso `forward` blockDirection)
-        `walkWalk` blockWalk treeDirection blockDirection
+        `opticCompose` blockWalk treeDirection blockDirection
 
 
 ---  JSON  ---
