@@ -33,6 +33,11 @@ library concrete-syntax
     visibility: public
     exposed-modules: Prosidy.ConcreteSyntax
 
+library foundation
+    import: all
+    visibility: public
+    exposed-modules: Prosidy.Foundation
+
 library optics-concepts
     import: all
     visibility: public
