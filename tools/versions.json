@@ -1,9 +1,15 @@
 {
+  "nixpkgs-unstable": {
+    "owner": "NixOS",
+    "repo": "nixpkgs-channels",
+    "rev": "b0bbacb52134a7e731e549f4c0a7a2a39ca6b481",
+    "sha256": "15ix4spjpdm6wni28camzjsmhz0gzk3cxhpsk035952plwdxhb67"
+  },
   "nixpkgs": {
     "owner": "NixOS",
     "repo": "nixpkgs-channels",
-    "rev": "d85e435b7bded2596d7b201bcd938c94d8a921c1",
-    "sha256": "1msjm4kx1z73v444i1iybvmc7z0kfkbn9nzr21rn5yc4ql1jwf99"
+    "rev": "eab4ee0c27c5c6f622aa0ca55091c394a9e33edd",
+    "sha256": "1h2z8fp3plm3if9692rp1xdjicxwbvp5vl8pm5cg0gb2r3l7rwy7"
   },
   "ghcide": {
     "owner": "hercules-ci",
