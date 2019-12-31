@@ -15,17 +15,15 @@
 
 module Prosidy.Foundation
   (
-    -------------------------------------------------------------------
-    {- * Foundation -}   Foundation ( Foundation ),
-    {- ** String -}      String,
-    {- ** List -}        List,
-                         ListBuilding ( listSingleton, listConcat ),
-    {- ** Dict -}        Dict,
-                         DictBuilding ( dictSingleton, dictConcat ),
-    {- ** ... -}         ListOfDictKeys ( listOfDictKeys ),
-    {- ** Base -}        BaseFoundation,
-                         AssociationList ( AssociationList )
-    -------------------------------------------------------------------
+    {- * Foundation -}  Foundation ( Foundation ),
+    {- * String -}      String,
+    {- * List -}        List,
+                        ListBuilding ( listSingleton, listConcat ),
+    {- * Dict -}        Dict,
+                        DictBuilding ( dictSingleton, dictConcat ),
+    {- * ... -}         ListOfDictKeys ( listOfDictKeys ),
+    {- * Base -}        BaseFoundation,
+                        AssociationList ( AssociationList )
   ) where
 
 -- List

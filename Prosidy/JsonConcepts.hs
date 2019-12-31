@@ -19,10 +19,8 @@
 
 module Prosidy.JsonConcepts
   (
-    -------------------------------------------------------------------
-    {- * JSON AST -}    JS ( JsString, JsList, JsDict ),
-    {- * Keys -}        JsKey ( .. ), JsKeyString ( .. )
-    -------------------------------------------------------------------
+    {- * JSON AST -}  JS ( JsString, JsList, JsDict ),
+    {- * Keys -}      JsKey ( .. ), JsKeyString ( .. )
   ) where
 
 import Prosidy.Foundation

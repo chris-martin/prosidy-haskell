@@ -45,18 +45,19 @@ original document. -}
 
 module Prosidy.AbstractSyntax
   (
-    -- * The AST
-    Prosidy ( Document, List, Paragraph, TagParagraph, TagBlock,
-              TagLiteral, TagInline, StringInline, SoftBreak, Attrs ),
+    {- * The AST -}      Prosidy ( Document, List, Paragraph,
+                            TagParagraph, TagBlock, TagLiteral,
+                            TagInline, StringInline, SoftBreak, Attrs ),
 
     {- * Context -}      Context ( Context ),
     {- ** Size -}        Size ( One, Many ),
     {- ** Level -}       Level ( Root, Block, Inline, Meta ),
 
-    {- * Fun with AST -} documentHeadLens, documentBodyLens,
+    {- * Lens, prism -}  documentHeadLens, documentBodyLens,
                          prosidyListIso,
 
-    {- * AST walking -}  Walk ( Walk ), nilWalk, idWalk,
+    {- * Traversal -}    MonadicTraversal ( MonadicTraversal ),
+                         nilWalk, idWalk,
                          InlineDirection ( LeftToRight, RightToLeft ),
                          BlockDirection ( TopToBottom, BottomToTop ),
                          TreeDirection ( RootToLeaf, LeafToRoot ),
@@ -336,41 +337,41 @@ data ListDirection = ListForward | ListBackward
 
 class ListWalk list
   where
-    listWalk :: ListDirection -> Walk (list a) (list b) a b
+    listWalk :: ListDirection -> MonadicTraversal (list a) (list b) a b
 
 instance ListWalk []
   where
-    listWalk ListForward = Walk Prelude.traverse
-    listWalk ListBackward = Walk (\action xs -> Prelude.traverse action (List.reverse xs))
+    listWalk ListForward = MonadicTraversal Prelude.traverse
+    listWalk ListBackward = MonadicTraversal (\action xs -> Prelude.traverse action (List.reverse xs))
 
 
 ---  Walk concept  ---
 
-data Walk a a' b b' = Walk (forall f. (Monad f) => (b -> f b') -> a -> f a')
+data MonadicTraversal a a' b b' = MonadicTraversal (forall f. (Monad f) => (b -> f b') -> a -> f a')
 
-applyWalk :: Monad f => Walk a a' b b' -> (b -> f b') -> a -> f a'
-applyWalk (Walk walk) f a = walk f a
+monadicTraverse :: Monad f => MonadicTraversal a a' b b' -> (b -> f b') -> a -> f a'
+monadicTraverse (MonadicTraversal walk) f a = walk f a
 
-instance Optic Walk
+instance Optic MonadicTraversal
 
-instance OpticCompose Iso Walk Walk
+instance OpticCompose Iso MonadicTraversal MonadicTraversal
   where
-    opticCompose (Iso convert convertBack) (Walk walk) = Walk $ \action s ->
+    opticCompose (Iso convert convertBack) (MonadicTraversal walk) = MonadicTraversal $ \action s ->
       do
         v <- walk action (convert s)
         return (convertBack v)
 
-instance OpticCompose Lens Walk Walk
+instance OpticCompose Lens MonadicTraversal MonadicTraversal
   where
-    opticCompose (Lens separate) (Walk walk) = Walk $ \action s ->
+    opticCompose (Lens separate) (MonadicTraversal walk) = MonadicTraversal $ \action s ->
       do
         let Separation u r = separate s
         v <- walk action u
         return (r v)
 
-instance OpticCompose Prism Walk Walk
+instance OpticCompose Prism MonadicTraversal MonadicTraversal
   where
-    opticCompose (Prism narrow widen) (Walk walk) = Walk $ \action s ->
+    opticCompose (Prism narrow widen) (MonadicTraversal walk) = MonadicTraversal $ \action s ->
         case (narrow s) of
             No t -> return t
             Ok u ->
@@ -378,9 +379,9 @@ instance OpticCompose Prism Walk Walk
                 v <- walk action u
                 return (widen v)
 
-instance OpticCompose AffineTraversal Walk Walk
+instance OpticCompose AffineTraversal MonadicTraversal MonadicTraversal
   where
-    opticCompose (AffineTraversal separate) (Walk walk) = Walk $ \action s ->
+    opticCompose (AffineTraversal separate) (MonadicTraversal walk) = MonadicTraversal $ \action s ->
       do
         case (separate s) of
             No t -> return t
@@ -389,15 +390,15 @@ instance OpticCompose AffineTraversal Walk Walk
                 v <- walk action u
                 return (r v)
 
-instance OpticCompose Walk Walk Walk
+instance OpticCompose MonadicTraversal MonadicTraversal MonadicTraversal
   where
-    opticCompose (Walk x) (Walk y) = Walk (\action s -> x (y action) s)
+    opticCompose (MonadicTraversal x) (MonadicTraversal y) = MonadicTraversal (\action s -> x (y action) s)
 
-nilWalk :: Walk s s a b
-nilWalk = Walk $ \_action s -> pure s
+nilWalk :: MonadicTraversal s s a b
+nilWalk = MonadicTraversal $ \_action s -> pure s
 
-idWalk :: Simple Walk s s
-idWalk = Walk $ \action s -> action s
+idWalk :: Simple MonadicTraversal s s
+idWalk = MonadicTraversal $ \action s -> action s
 
 
 ---  Various basic AST manipulations  ---
@@ -443,17 +444,17 @@ data InlineDirection = LeftToRight | RightToLeft
 prosidyListWalk :: ListWalk (List f) =>
     ListDirection
     ->
-    Simple Walk (Prosidy f ('Context 'Many l))
-                (Prosidy f ('Context 'One l))
+    Simple MonadicTraversal (Prosidy f ('Context 'Many l))
+                            (Prosidy f ('Context 'One l))
 
 prosidyListWalk direction =
     prosidyListIso `opticCompose` listWalk direction
 
 blockChildrenWalk ::
-    Simple Walk (Prosidy f ('Context 'One 'Block))
-                (Prosidy f ('Context 'Many 'Block))
+    Simple MonadicTraversal (Prosidy f ('Context 'One 'Block))
+                           (Prosidy f ('Context 'Many 'Block))
 
-blockChildrenWalk = Walk $ \action block ->
+blockChildrenWalk = MonadicTraversal $ \action block ->
     case block of
         TagBlock name attrs children ->
             TagBlock name attrs `fmap` action children
@@ -462,8 +463,8 @@ blockChildrenWalk = Walk $ \action block ->
 eachBlockChild :: ListWalk (List f) =>
     BlockDirection
     ->
-    Simple Walk (Prosidy f ('Context 'One 'Block))
-                (Prosidy f ('Context 'One 'Block))
+    Simple MonadicTraversal (Prosidy f ('Context 'One 'Block))
+                            (Prosidy f ('Context 'One 'Block))
 
 eachBlockChild blockDirection =
     blockChildrenWalk `opticCompose`
@@ -484,8 +485,8 @@ class BlockWalk size level
         ->
         BlockDirection
         ->
-        Simple Walk (Prosidy f ('Context size level))
-                    (Prosidy f ('Context 'One 'Block))
+        Simple MonadicTraversal (Prosidy f ('Context size level))
+                                (Prosidy f ('Context 'One 'Block))
 
 instance BlockWalk 'One 'Root
   where
@@ -495,15 +496,15 @@ instance BlockWalk 'One 'Root
 
 instance BlockWalk 'One 'Block
   where
-    blockWalk treeDirection blockDirection = Walk $ \action block ->
+    blockWalk treeDirection blockDirection = MonadicTraversal $ \action block ->
         case treeDirection of
             RootToLeaf ->
               do
                 block' <- action block
-                applyWalk (eachBlockChild blockDirection) action block'
+                monadicTraverse (eachBlockChild blockDirection) action block'
             LeafToRoot ->
               do
-                block' <- applyWalk (eachBlockChild blockDirection) action block
+                block' <- monadicTraverse (eachBlockChild blockDirection) action block
                 action block'
 
 instance BlockWalk 'Many 'Block

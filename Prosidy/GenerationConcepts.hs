@@ -2,9 +2,9 @@
 
 module Prosidy.GenerationConcepts
   (
-  {- * Generator type -}   Gen ( GenAwait, GenYield ),
-  {- * Gen combinators -}  genConst, genId, genAp, genCompose,
-  {- * Specific gens -}    genWord8AsciiPrint
+    {- * Generator type -}   Gen ( GenAwait, GenYield ),
+    {- * Gen combinators -}  genConst, genId, genAp, genCompose,
+    {- * Specific gens -}    genWord8AsciiPrint
   ) where
 
 import Data.Function (fix)
