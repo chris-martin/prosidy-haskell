@@ -22,7 +22,7 @@
 module Prosidy.OpticsConcepts
   (
     {- * Optic -}           Optic,
-    {- * Try -}             Try ( .. ), recover, overNo, overOk, overTry,
+    {- * Try -}             Try ( .. ), recover, no, ok, overTry,
     {- * Separation -}      Separation ( .. ), part, reassemble,
                             afterReassemble, beforeReassemble,
     {- * Try separation -}  TrySeparation,
@@ -58,6 +58,18 @@ overOk f (Ok b) = Ok (f b)
 overTry :: (a -> a') -> (b -> b') -> Try a b -> Try a' b'
 overTry f _ (No a) = No (f a)
 overTry _ f (Ok b) = Ok (f b)
+
+ok :: Prism (Try z b) (Try z b') b b'
+ok = Prism abTry Ok
+  where
+    abTry (Ok b) = Ok b
+    abTry (No z) = No (No z)
+
+no :: Prism (Try b z) (Try b' z) b b'
+no = Prism abTry No
+  where
+    abTry (No b) = Ok b
+    abTry (Ok z) = No (Ok z)
 
 -- | The result of applying a lens.
 --
