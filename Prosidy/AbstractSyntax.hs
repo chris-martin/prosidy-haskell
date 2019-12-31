@@ -28,7 +28,7 @@
        even from the base package. Disabling the implicit import
        of the Prelude module makes this more clear. -}
 
-{-# LANGUAGE LambdaCase, FlexibleContexts, FlexibleInstances, FunctionalDependencies, TypeFamilies, ExplicitForAll, StandaloneDeriving, DeriveFunctor, TypeApplications, ScopedTypeVariables, QuantifiedConstraints, RankNTypes, LiberalTypeSynonyms, UndecidableInstances #-}
+{-# LANGUAGE LambdaCase, FlexibleContexts, FunctionalDependencies, TypeApplications, ScopedTypeVariables, RankNTypes #-}
 
 {- | The /abstract syntax tree/ is comprised of the semantic components
 of a Prosidy document (the text, paragraphs, tags, etc.) without
