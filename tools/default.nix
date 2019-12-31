@@ -12,7 +12,7 @@ rec {
 
   haskell = callPackage ./haskell.nix { inherit haskellPackages; };
 
-  inherit (haskellPackages) ghcid;
+  inherit (haskellPackages) cabal-install ghcid;
 
   ghcide = (import versions.ghcide {})."ghcide-${ghcVersion}";
 

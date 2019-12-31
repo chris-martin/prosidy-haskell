@@ -1,4 +1,4 @@
 let
-  inherit (import ./default.nix) pkgs haskell ghcid ghcide;
+  inherit (import ./default.nix) pkgs haskell cabal-install ghcid ghcide;
 in
-  pkgs.mkShell { buildInputs = [ haskell ghcid ghcide ]; }
+  pkgs.mkShell { buildInputs = [ haskell cabal-install ghcid ghcide ]; }
