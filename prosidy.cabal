@@ -10,7 +10,7 @@ extra-source-files:
     readme.pro
     changelog.pro
 
-common all
+library
     default-language: Haskell2010
     hs-source-dirs: .
 
@@ -23,27 +23,9 @@ common all
     -- work with `base` version 4.13 or greater.
     build-depends: base < 4.13
 
-library abstract-syntax
-    import: all
-    visibility: public
-    exposed-modules: Prosidy.AbstractSyntax
-
-library concrete-syntax
-    import: all
-    visibility: public
-    exposed-modules: Prosidy.ConcreteSyntax
-
-library foundation
-    import: all
-    visibility: public
-    exposed-modules: Prosidy.Foundation
-
-library optics-concepts
-    import: all
-    visibility: public
-    exposed-modules: Prosidy.OpticsConcepts
-
-library generation-concepts
-    import: all
-    visibility: public
-    exposed-modules: Prosidy.GenerationConcepts
+    exposed-modules:
+        Prosidy.AbstractSyntax
+        Prosidy.ConcreteSyntax
+        Prosidy.Foundation
+        Prosidy.OpticsConcepts
+        Prosidy.GenerationConcepts
