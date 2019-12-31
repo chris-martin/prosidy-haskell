@@ -37,7 +37,7 @@ module Prosidy.OpticsConcepts
 (▶) :: (a -> b) -> (b -> c) -> (a -> c)
 (ab ▶ bc) a = bc (ab (a))
 
-(◀) :: (t1 -> t2) -> (t3 -> t1) -> t3 -> t2
+(◀) :: (a -> b) -> (c -> a) -> c -> b
 (ab ◀ bc) c = ab (bc (c))
 
 data Try a b = No a | Ok b
