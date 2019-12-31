@@ -45,18 +45,17 @@ original document. -}
 
 module Prosidy.AbstractSyntax
   (
-    -------------------------------------------------------------------
     -- * The AST
     Prosidy ( Document, List, Paragraph, TagParagraph, TagBlock,
               TagLiteral, TagInline, StringInline, SoftBreak, Attrs ),
-    -------------------------------------------------------------------
+
     {- * Context -}      Context ( Context ),
     {- ** Size -}        Size ( One, Many ),
     {- ** Level -}       Level ( Root, Block, Inline, Meta ),
-    -------------------------------------------------------------------
+
     {- * Fun with AST -} documentHeadLens, documentBodyLens,
                          prosidyListIso,
-    -------------------------------------------------------------------
+
     {- * AST walking -}  Walk ( Walk ), nilWalk, idWalk,
                          InlineDirection ( LeftToRight, RightToLeft ),
                          BlockDirection ( TopToBottom, BottomToTop ),
@@ -64,12 +63,11 @@ module Prosidy.AbstractSyntax
                          prosidyListWalk, blockChildrenWalk,
                          eachBlockChild, blockListDirectionIso,
                          BlockWalk ( blockWalk ),
-    -------------------------------------------------------------------
+
     {- * JSON -}         prosidyJS,
-    -------------------------------------------------------------------
+
     {- * Generation -}   genDocument, genBlock, genInline,
                          GenOption ( .. ), genDefault
-    -------------------------------------------------------------------
   ) where
 
 import Prosidy.Foundation

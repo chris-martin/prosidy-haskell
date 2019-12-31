@@ -20,17 +20,18 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module Prosidy.OpticsConcepts
-  ( {- * Optic -}             Optic,
-    {- * Try -}               Try ( .. ), recover, overNo, overOk, overTry,
-    {- * Separation -}        Separation ( .. ), part, reassemble,
-                              afterReassemble, beforeReassemble,
-    {- * Try separation -}    TrySeparation,
-    {- * Operations -}        Forward ( forward ), ForwardTry ( forwardTry ),
-                              Backward ( backward ), Over ( over ),
-    {- * Optic types -}       Iso ( Iso ), Lens ( Lens ), Prism ( Prism ),
-                              AffineTraversal ( AffineTraversal ),
-    {- * Composition -}       OpticCompose ( .. ),
-    {- * Simple -}            Simple
+  (
+    {- * Optic -}           Optic,
+    {- * Try -}             Try ( .. ), recover, overNo, overOk, overTry,
+    {- * Separation -}      Separation ( .. ), part, reassemble,
+                            afterReassemble, beforeReassemble,
+    {- * Try separation -}  TrySeparation,
+    {- * Operations -}      Forward ( forward ), ForwardTry ( forwardTry ),
+                            Backward ( backward ), Over ( over ),
+    {- * Optic types -}     Iso ( Iso ), Lens ( Lens ), Prism ( Prism ),
+                            AffineTraversal ( AffineTraversal ),
+    {- * Composition -}     OpticCompose ( .. ),
+    {- * Simple -}          Simple
   ) where
 
 -- | Function composition: @ab ▶ bc@ converts from @a@ to @b@, then from @b@ to @c@.
