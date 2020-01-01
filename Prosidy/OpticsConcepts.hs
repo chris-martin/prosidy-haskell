@@ -24,20 +24,34 @@
 module Prosidy.OpticsConcepts
   (
     {- * Optic -}           Optic,
+
     {- * Try -}             Try ( .. ), recover, no, ok, overTry,
+
     {- * Separation -}      Separation ( .. ), part, reassemble,
                             afterReassemble, beforeReassemble,
+
     {- * Try separation -}  TrySeparation,
-    {- * Operations -}      Forward ( forward ), ForwardTry ( forwardTry ),
-                            Backward ( backward ), Over ( over ),
-    {- * Optic types -}     Iso ( Iso ), Lens ( Lens ), Prism ( Prism ),
-                            AffineTraversal ( AffineTraversal ),
-                            MonadicTraversal ( MonadicTraversal ),
+
+    {- * Operations -}      Forward    ( forward ),
+                            ForwardTry ( forwardTry ),
+                            Backward   ( backward ),
+                            Over       ( over ),
+
+    {- * Optic types -}     Iso                  ( Iso ),
+                            Lens                 ( Lens ),
+                            Prism                ( Prism ),
+                            AffineTraversal      ( AffineTraversal ),
+                            ApplicativeTraversal ( ApplicativeTraversal ),
+                            MonadicTraversal     ( MonadicTraversal ),
+
     {- * Composition -}     OpticCompose ( .. ),
+
     {- * Simple -}          Simple
   ) where
 
+-- Functors
 import Data.Functor (fmap)
+import Control.Applicative (Applicative)
 import Control.Monad (Monad (return))
 
 -- | Function composition: @ab ▶ bc@ converts from @a@ to @b@, then from @b@ to @c@.
@@ -145,6 +159,10 @@ data AffineTraversal a a' b b' = AffineTraversal (a -> TrySeparation a' b b')
 instance Optic AffineTraversal
 
 type Simple o a b = o a a b b
+
+data ApplicativeTraversal a a' b b' = ApplicativeTraversal (a -> forall f. (Applicative f) => (b -> f b') -> f a')
+
+instance Optic ApplicativeTraversal
 
 data MonadicTraversal a a' b b' = MonadicTraversal (a -> forall f. (Monad f) => (b -> f b') -> f a')
 
