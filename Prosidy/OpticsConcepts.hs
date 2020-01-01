@@ -146,7 +146,7 @@ instance Optic AffineTraversal
 
 type Simple o a b = o a a b b
 
-data MonadicTraversal a a' b b' = MonadicTraversal (forall f. (Monad f) => a -> (b -> f b') -> f a')
+data MonadicTraversal a a' b b' = MonadicTraversal (a -> forall f. (Monad f) => (b -> f b') -> f a')
 
 instance Optic MonadicTraversal
 
