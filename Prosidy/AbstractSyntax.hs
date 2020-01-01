@@ -82,6 +82,8 @@ import qualified Data.List as List
 import System.IO (IO)
 import Data.Functor.Identity (Identity (Identity))
 
+import qualified Data.Traversable as Traversable
+
 -- Char
 import Data.Char (Char)
 import qualified Data.Char as Char
@@ -341,64 +343,64 @@ class ListWalk list
 
 instance ListWalk []
   where
-    listWalk ListForward = MonadicTraversal Prelude.traverse
-    listWalk ListBackward = MonadicTraversal (\action xs -> Prelude.traverse action (List.reverse xs))
+    listWalk ListForward = MonadicTraversal Traversable.for
+    listWalk ListBackward = MonadicTraversal (\xs action -> Traversable.for (List.reverse xs) action)
 
 
 ---  Walk concept  ---
 
-data MonadicTraversal a a' b b' = MonadicTraversal (forall f. (Monad f) => (b -> f b') -> a -> f a')
+data MonadicTraversal a a' b b' = MonadicTraversal (forall f. (Monad f) => a -> (b -> f b') -> f a')
 
 monadicTraverse :: Monad f => MonadicTraversal a a' b b' -> (b -> f b') -> a -> f a'
-monadicTraverse (MonadicTraversal walk) f a = walk f a
+monadicTraverse (MonadicTraversal walk) f a = walk a f
 
 instance Optic MonadicTraversal
 
 instance OpticCompose Iso MonadicTraversal MonadicTraversal
   where
-    opticCompose (Iso convert convertBack) (MonadicTraversal walk) = MonadicTraversal $ \action s ->
+    opticCompose (Iso convert convertBack) (MonadicTraversal walk) = MonadicTraversal $ \s action ->
       do
-        v <- walk action (convert s)
+        v <- walk (convert s) action
         return (convertBack v)
 
 instance OpticCompose Lens MonadicTraversal MonadicTraversal
   where
-    opticCompose (Lens separate) (MonadicTraversal walk) = MonadicTraversal $ \action s ->
+    opticCompose (Lens separate) (MonadicTraversal walk) = MonadicTraversal $ \s action ->
       do
         let Separation u r = separate s
-        v <- walk action u
+        v <- walk u action
         return (r v)
 
 instance OpticCompose Prism MonadicTraversal MonadicTraversal
   where
-    opticCompose (Prism narrow widen) (MonadicTraversal walk) = MonadicTraversal $ \action s ->
+    opticCompose (Prism narrow widen) (MonadicTraversal walk) = MonadicTraversal $ \s action ->
         case (narrow s) of
             No t -> return t
             Ok u ->
               do
-                v <- walk action u
+                v <- walk u action
                 return (widen v)
 
 instance OpticCompose AffineTraversal MonadicTraversal MonadicTraversal
   where
-    opticCompose (AffineTraversal separate) (MonadicTraversal walk) = MonadicTraversal $ \action s ->
+    opticCompose (AffineTraversal separate) (MonadicTraversal walk) = MonadicTraversal $ \s action ->
       do
         case (separate s) of
             No t -> return t
             Ok (Separation u r) ->
               do
-                v <- walk action u
+                v <- walk u action
                 return (r v)
 
 instance OpticCompose MonadicTraversal MonadicTraversal MonadicTraversal
   where
-    opticCompose (MonadicTraversal x) (MonadicTraversal y) = MonadicTraversal (\action s -> x (y action) s)
+    opticCompose (MonadicTraversal x) (MonadicTraversal y) = MonadicTraversal (\s action -> x s (\u -> y u action))
 
 nilWalk :: MonadicTraversal s s a b
-nilWalk = MonadicTraversal $ \_action s -> pure s
+nilWalk = MonadicTraversal $ \s _action -> pure s
 
 idWalk :: Simple MonadicTraversal s s
-idWalk = MonadicTraversal $ \action s -> action s
+idWalk = MonadicTraversal $ \s action -> action s
 
 
 ---  Various basic AST manipulations  ---
@@ -454,7 +456,7 @@ blockChildrenWalk ::
     Simple MonadicTraversal (Prosidy f ('Context 'One 'Block))
                            (Prosidy f ('Context 'Many 'Block))
 
-blockChildrenWalk = MonadicTraversal $ \action block ->
+blockChildrenWalk = MonadicTraversal $ \block action ->
     case block of
         TagBlock name attrs children ->
             TagBlock name attrs `fmap` action children
@@ -496,7 +498,7 @@ instance BlockWalk 'One 'Root
 
 instance BlockWalk 'One 'Block
   where
-    blockWalk treeDirection blockDirection = MonadicTraversal $ \action block ->
+    blockWalk treeDirection blockDirection = MonadicTraversal $ \block action ->
         case treeDirection of
             RootToLeaf ->
               do
