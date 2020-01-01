@@ -56,8 +56,7 @@ module Prosidy.AbstractSyntax
     {- * Lens, prism -}  documentHeadLens, documentBodyLens,
                          prosidyListIso,
 
-    {- * Traversal -}    MonadicTraversal ( MonadicTraversal ),
-                         nilWalk, idWalk,
+    {- * Traversal -}    nilWalk, idWalk,
                          InlineDirection ( LeftToRight, RightToLeft ),
                          BlockDirection ( TopToBottom, BottomToTop ),
                          TreeDirection ( RootToLeaf, LeafToRoot ),
@@ -349,52 +348,8 @@ instance ListWalk []
 
 ---  Walk concept  ---
 
-data MonadicTraversal a a' b b' = MonadicTraversal (forall f. (Monad f) => a -> (b -> f b') -> f a')
-
 monadicTraverse :: Monad f => MonadicTraversal a a' b b' -> (b -> f b') -> a -> f a'
 monadicTraverse (MonadicTraversal walk) f a = walk a f
-
-instance Optic MonadicTraversal
-
-instance OpticCompose Iso MonadicTraversal MonadicTraversal
-  where
-    opticCompose (Iso convert convertBack) (MonadicTraversal walk) = MonadicTraversal $ \s action ->
-      do
-        v <- walk (convert s) action
-        return (convertBack v)
-
-instance OpticCompose Lens MonadicTraversal MonadicTraversal
-  where
-    opticCompose (Lens separate) (MonadicTraversal walk) = MonadicTraversal $ \s action ->
-      do
-        let Separation u r = separate s
-        v <- walk u action
-        return (r v)
-
-instance OpticCompose Prism MonadicTraversal MonadicTraversal
-  where
-    opticCompose (Prism narrow widen) (MonadicTraversal walk) = MonadicTraversal $ \s action ->
-        case (narrow s) of
-            No t -> return t
-            Ok u ->
-              do
-                v <- walk u action
-                return (widen v)
-
-instance OpticCompose AffineTraversal MonadicTraversal MonadicTraversal
-  where
-    opticCompose (AffineTraversal separate) (MonadicTraversal walk) = MonadicTraversal $ \s action ->
-      do
-        case (separate s) of
-            No t -> return t
-            Ok (Separation u r) ->
-              do
-                v <- walk u action
-                return (r v)
-
-instance OpticCompose MonadicTraversal MonadicTraversal MonadicTraversal
-  where
-    opticCompose (MonadicTraversal x) (MonadicTraversal y) = MonadicTraversal (\s action -> x s (\u -> y u action))
 
 nilWalk :: MonadicTraversal s s a b
 nilWalk = MonadicTraversal $ \s _action -> pure s
