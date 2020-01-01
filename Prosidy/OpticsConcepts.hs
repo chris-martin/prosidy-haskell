@@ -37,8 +37,8 @@ module Prosidy.OpticsConcepts
     {- * Simple -}          Simple
   ) where
 
+import Data.Functor (fmap)
 import Control.Monad (Monad (return))
-import Data.Function (($))
 
 -- | Function composition: @ab ▶ bc@ converts from @a@ to @b@, then from @b@ to @c@.
 (▶) :: (a -> b) -> (b -> c) -> (a -> c)
@@ -171,39 +171,23 @@ instance OpticCompose Iso AffineTraversal AffineTraversal
 
 instance OpticCompose Iso MonadicTraversal MonadicTraversal
   where
-    opticCompose (Iso convert convertBack) (MonadicTraversal walk) = MonadicTraversal $ \s action ->
-      do
-        v <- walk (convert s) action
-        return (convertBack v)
+    opticCompose (Iso ab ab') (MonadicTraversal bcTraversal) =
+        MonadicTraversal (ab ▶ bcTraversal ▶ (\cAction -> cAction ▶ fmap ab'))
 
 instance OpticCompose Lens MonadicTraversal MonadicTraversal
   where
-    opticCompose (Lens separate) (MonadicTraversal walk) = MonadicTraversal $ \s action ->
-      do
-        let Separation u r = separate s
-        v <- walk u action
-        return (r v)
+    opticCompose (Lens abSep) (MonadicTraversal bcTraversal) =
+        MonadicTraversal (abSep ▶ (\(Separation b ab') -> (bcTraversal b ▶ fmap ab')))
 
 instance OpticCompose Prism MonadicTraversal MonadicTraversal
   where
-    opticCompose (Prism narrow widen) (MonadicTraversal walk) = MonadicTraversal $ \s action ->
-        case (narrow s) of
-            No t -> return t
-            Ok u ->
-              do
-                v <- walk u action
-                return (widen v)
+    opticCompose (Prism abTry ab') (MonadicTraversal bcTraversal) =
+        MonadicTraversal (abTry ▶ overTry (\a _cAction -> return a) (\b -> bcTraversal b ▶ fmap ab') ▶ recover)
 
 instance OpticCompose AffineTraversal MonadicTraversal MonadicTraversal
   where
-    opticCompose (AffineTraversal separate) (MonadicTraversal walk) = MonadicTraversal $ \s action ->
-      do
-        case (separate s) of
-            No t -> return t
-            Ok (Separation u r) ->
-              do
-                v <- walk u action
-                return (r v)
+    opticCompose (AffineTraversal abTrySep) (MonadicTraversal bcTraversal) =
+        MonadicTraversal (abTrySep ▶ overTry (\a _cAction -> return a) (\(Separation b ab') -> bcTraversal b ▶ fmap ab') ▶ recover)
 
 instance OpticCompose MonadicTraversal MonadicTraversal MonadicTraversal
   where
