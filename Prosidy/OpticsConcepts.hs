@@ -51,8 +51,8 @@ module Prosidy.OpticsConcepts
 
 -- Functors
 import Data.Functor (fmap)
-import Control.Applicative (Applicative)
-import Control.Monad (Monad (return))
+import Control.Applicative (Applicative (pure))
+import Control.Monad (Monad)
 
 -- | Function composition: @ab ▶ bc@ converts from @a@ to @b@, then from @b@ to @c@.
 (▶) :: (a -> b) -> (b -> c) -> (a -> c)
@@ -187,29 +187,65 @@ instance OpticCompose Iso AffineTraversal AffineTraversal
     opticCompose (Iso ab ab') (AffineTraversal bcTrySep) =
         AffineTraversal (ab ▶ bcTrySep ▶ overTry ab' (afterReassemble ab'))
 
+instance OpticCompose Iso ApplicativeTraversal ApplicativeTraversal
+  where
+    opticCompose (Iso ab ab') (ApplicativeTraversal bcTraversal) =
+        ApplicativeTraversal (ab ▶ bcTraversal ▶ (\cAction -> cAction ▶ fmap ab'))
+
 instance OpticCompose Iso MonadicTraversal MonadicTraversal
   where
     opticCompose (Iso ab ab') (MonadicTraversal bcTraversal) =
         MonadicTraversal (ab ▶ bcTraversal ▶ (\cAction -> cAction ▶ fmap ab'))
+
+instance OpticCompose Lens ApplicativeTraversal ApplicativeTraversal
+  where
+    opticCompose (Lens abSep) (ApplicativeTraversal bcTraversal) =
+        ApplicativeTraversal (abSep ▶ (\(Separation b ab') -> (bcTraversal b ▶ fmap ab')))
 
 instance OpticCompose Lens MonadicTraversal MonadicTraversal
   where
     opticCompose (Lens abSep) (MonadicTraversal bcTraversal) =
         MonadicTraversal (abSep ▶ (\(Separation b ab') -> (bcTraversal b ▶ fmap ab')))
 
+instance OpticCompose Prism ApplicativeTraversal ApplicativeTraversal
+  where
+    opticCompose (Prism abTry ab') (ApplicativeTraversal bcTraversal) =
+        ApplicativeTraversal (abTry ▶ overTry (\a _cAction -> pure a) (\b -> bcTraversal b ▶ fmap ab') ▶ recover)
+
 instance OpticCompose Prism MonadicTraversal MonadicTraversal
   where
     opticCompose (Prism abTry ab') (MonadicTraversal bcTraversal) =
-        MonadicTraversal (abTry ▶ overTry (\a _cAction -> return a) (\b -> bcTraversal b ▶ fmap ab') ▶ recover)
+        MonadicTraversal (abTry ▶ overTry (\a _cAction -> pure a) (\b -> bcTraversal b ▶ fmap ab') ▶ recover)
+
+instance OpticCompose AffineTraversal ApplicativeTraversal ApplicativeTraversal
+  where
+    opticCompose (AffineTraversal abTrySep) (ApplicativeTraversal bcTraversal) =
+        ApplicativeTraversal (abTrySep ▶ overTry (\a _cAction -> pure a) (\(Separation b ab') -> bcTraversal b ▶ fmap ab') ▶ recover)
 
 instance OpticCompose AffineTraversal MonadicTraversal MonadicTraversal
   where
     opticCompose (AffineTraversal abTrySep) (MonadicTraversal bcTraversal) =
-        MonadicTraversal (abTrySep ▶ overTry (\a _cAction -> return a) (\(Separation b ab') -> bcTraversal b ▶ fmap ab') ▶ recover)
+        MonadicTraversal (abTrySep ▶ overTry (\a _cAction -> pure a) (\(Separation b ab') -> bcTraversal b ▶ fmap ab') ▶ recover)
+
+instance OpticCompose ApplicativeTraversal ApplicativeTraversal ApplicativeTraversal
+  where
+    opticCompose (ApplicativeTraversal abTraversal) (ApplicativeTraversal bcTraversal) =
+        ApplicativeTraversal (\a action -> abTraversal a (\b -> bcTraversal b action))
+
+instance OpticCompose ApplicativeTraversal MonadicTraversal MonadicTraversal
+  where
+    opticCompose (ApplicativeTraversal abTraversal) (MonadicTraversal bcTraversal) =
+        MonadicTraversal (\a action -> abTraversal a (\b -> bcTraversal b action))
+
+instance OpticCompose MonadicTraversal ApplicativeTraversal MonadicTraversal
+  where
+    opticCompose (MonadicTraversal abTraversal) (ApplicativeTraversal bcTraversal) =
+        MonadicTraversal (\a action -> abTraversal a (\b -> bcTraversal b action))
 
 instance OpticCompose MonadicTraversal MonadicTraversal MonadicTraversal
   where
-    opticCompose (MonadicTraversal x) (MonadicTraversal y) = MonadicTraversal (\s action -> x s (\u -> y u action))
+    opticCompose (MonadicTraversal abTraversal) (MonadicTraversal bcTraversal) =
+        MonadicTraversal (\a action -> abTraversal a (\b -> bcTraversal b action))
 
 -- |
 -- >               ╭──────────╮   ╭──────────╮
