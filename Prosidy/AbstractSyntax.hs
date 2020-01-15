@@ -1,73 +1,51 @@
 {-# OPTIONS_GHC -Wall #-}
-    {- All GHC warnings are enabled. -}
+-- All GHC warnings are enabled.
 
-{-# OPTIONS_GHC -fno-warn-unused-imports
-                -fdefer-typed-holes -fno-warn-typed-holes #-}
-    {- These are temporary warning suppressions while this module
-       undergoes heavily development. (todo: remove this pragma) -}
+{-# OPTIONS_GHC -fno-warn-unused-imports -fdefer-typed-holes -fno-warn-typed-holes #-}
+-- These are temporary warning suppressions while this module undergoes heavily development. (todo: remove this pragma)
 
 {-# LANGUAGE GADTs #-}
-    {- The 'Prosidy' type is a GADT; its data constructors have
-       different type parameters than the 'Prosidy' type itself.
-       This requires enabling the GADTs language extension. -}
+-- The 'Prosidy' type is a GADT; its data constructors have different type parameters than the 'Prosidy' type itself. This requires enabling the GADTs language extension.
 
 {-# LANGUAGE DataKinds #-}
-    {- The data kinds extension turns types into kinds and
-       data constructors into type constructors. We use this to
-       establish the kinds 'Context', 'Size', and 'Level' which
-       parameterize the 'Prosidy' type. -}
+-- The data kinds extension turns types into kinds and data constructors into type constructors. We use this to establish the kinds 'Context', 'Size', and 'Level' which parameterize the 'Prosidy' type.
 
 {-# LANGUAGE KindSignatures #-}
-    {- We use the kind signatures extension to annotate type
-       parameters with their kind using (::). This is just like
-       a type annotation, but what follows the colons is a kind
-       rather than a type. -}
+-- We use the kind signatures extension to annotate type parameters with their kind using (::). This is just like a type annotation, but what follows the colons is a kind rather than a type.
 
 {-# LANGUAGE NoImplicitPrelude #-}
-    {- This module depends on as little library code as possible,
-       even from the base package. Disabling the implicit import
-       of the Prelude module makes this more clear. -}
+-- This module depends on as little library code as possible, even from the base package. Disabling the implicit import of the Prelude module makes this more clear.
 
 {-# LANGUAGE LambdaCase, FlexibleContexts, FunctionalDependencies, TypeApplications, ScopedTypeVariables, RankNTypes #-}
 
-{- | The /abstract syntax tree/ is comprised of the semantic components
-of a Prosidy document (the text, paragraphs, tags, etc.) without
-any of the less significant formatting details (optional whitespace,
-order of tag attributes, etc.). This is probably the representation you
-want if you are converting between document formats (e.g. Prosidy to
-HTML).
+-- | The /abstract syntax tree/ is comprised of the semantic components of a Prosidy document (the text, paragraphs, tags, etc.) without any of the less significant formatting details (optional whitespace, order of tag attributes, etc.). This is probably the representation you want if you are converting between document formats (e.g. Prosidy to HTML).
+--
+-- If you are going to modify a Prosidy document by parsing, transforming the parse result, and then rendering back into the Prosidy language, you may want to consider using the /concrete syntax tree/ ("Prosidy.ConcreteSyntax") instead to preserve the formatting of the original document.
 
-If you are going to modify a Prosidy document by parsing, transforming
-the parse result, and then rendering back into the Prosidy language,
-you may want to consider using the /concrete syntax tree/
-("Prosidy.ConcreteSyntax") instead to preserve the formatting of the
-original document. -}
+module Prosidy.AbstractSyntax (
 
-module Prosidy.AbstractSyntax
-  (
-    {- * The AST -}      Prosidy ( Document, List, Paragraph,
-                            TagParagraph, TagBlock, TagLiteral,
-                            TagInline, StringInline, SoftBreak, Attrs ),
+    -- * The AST
+    Prosidy (Document, List, Paragraph, TagParagraph, TagBlock, TagLiteral, TagInline, StringInline, SoftBreak, Attrs),
 
-    {- * Context -}      Context ( Context ),
-    {- ** Size -}        Size ( One, Many ),
-    {- ** Level -}       Level ( Root, Block, Inline, Meta ),
+    -- * Context
+    Context (Context),
+    -- ** Size
+    Size (One, Many),
+    -- ** Level
+    Level (Root, Block, Inline, Meta),
 
-    {- * Lens, prism -}  documentHeadLens, documentBodyLens,
-                         prosidyListIso,
+    -- * Lens, prism
+    documentHeadLens, documentBodyLens, prosidyListIso,
 
-    {- * Traversal -}    nilWalk, idWalk,
-                         InlineDirection ( LeftToRight, RightToLeft ),
-                         BlockDirection ( TopToBottom, BottomToTop ),
-                         TreeDirection ( RootToLeaf, LeafToRoot ),
-                         prosidyListWalk, blockChildrenWalk,
-                         eachBlockChild, blockListDirectionIso,
-                         BlockWalk ( blockWalk ),
+    -- * Traversal
+    nilWalk, idWalk, InlineDirection (LeftToRight, RightToLeft), BlockDirection (TopToBottom, BottomToTop), TreeDirection (RootToLeaf, LeafToRoot), prosidyListWalk, blockChildrenWalk, eachBlockChild, blockListDirectionIso, BlockWalk (blockWalk),
 
-    {- * JSON -}         prosidyJS,
+    -- * JSON
+    prosidyJS,
 
-    {- * Generation -}   genDocument, genBlock, genInline,
-                         GenOption ( .. ), genDefault
+    -- * Generation
+    genDocument, genBlock, genInline, GenOption ( .. ), genDefault
+
   ) where
 
 import Prosidy.Foundation
@@ -116,87 +94,44 @@ import qualified Prelude
 
 ---  Prosidy  ---
 
-{- | Abstract syntax tree for the Prosidy markup language.
-
-==== Type parameters
-
-[f]: A type of the 'Foundation' kind, specifying which types
-    are used to represent strings, lists, and dictionaries.
-    We abbreviate this tersely as @f@ because it is ubiquitous
-    but largely uninteresting.
-
-[context]: A type of the 'Context' kind (comprised of a 'Size'
-    and a 'Level') describing where this particular type of content
-    can appear within a Prosidy document. This parameter is how
-    we ensure that the tree is well-formed and that the various
-    types of content are nested appropriately; for example,
-    'Inline' elements can never contain 'Block' elements. -}
+-- | Abstract syntax tree for the Prosidy markup language.
+--
+-- ==== Type parameters
+--
+-- [f]: A type of the 'Foundation' kind, specifying which types are used to represent strings, lists, and dictionaries. We abbreviate this tersely as @f@ because it is ubiquitous but largely uninteresting.
+--
+-- [context]: A type of the 'Context' kind (comprised of a 'Size' and a 'Level') describing where this particular type of content can appear within a Prosidy document. This parameter is how we ensure that the tree is well-formed and that the various types of content are nested appropriately; for example, 'Inline' elements can never contain 'Block' elements. -}
 
 data Prosidy (f :: Foundation) (context :: Context) where
 
     Document ::
-        Prosidy f ('Context 'One 'Meta)
-          -- ^ The beginning of a Prosidy document is the head.
-          -- Each non-empty line of the head is an attribute.
-      ->
-        Prosidy f ('Context 'Many 'Block)
-          -- ^ A Prosidy document body consists of a list of blocks.
-          -- Blocks are (typically) separated by two consecutive line
-          -- breaks.
-      ->
-        Prosidy f ('Context 'One 'Root)
-          -- ^ A Prosidy document consists of a head and a body. The
-          -- first line containing only three dashes (@---@) separates
-          -- the head from the body.
+         Prosidy f ('Context 'One 'Meta) -- ^ The beginning of a Prosidy document is the head. Each non-empty line of the head is an attribute.
+      -> Prosidy f ('Context 'Many 'Block) -- ^ A Prosidy document body consists of a list of blocks. Blocks are (typically) separated by two consecutive line breaks.
+      -> Prosidy f ('Context 'One 'Root) -- ^ A Prosidy document consists of a head and a body. The first line containing only three dashes (@---@) separates the head from the body.
 
     List ::
-        List f (Prosidy f ('Context 'One level))
-          -- ^ e.g. a list of blocks or a list of inlines
-      ->
-        Prosidy f ('Context 'Many level)
-          -- ^ Lists are important in the structure Prosidy (or of
-          -- any markup language) because prose is largely linear;
-          -- a document body is a list of paragraphs, and paragraphs
-          -- are lists of words.
+         List f (Prosidy f ('Context 'One level)) -- ^ e.g. a list of blocks or a list of inlines
+      -> Prosidy f ('Context 'Many level) -- ^ Lists are important in the structure Prosidy (or of any markup language) because prose is largely linear; a document body is a list of paragraphs, and paragraphs are lists of words.
 
     Paragraph ::
-        Prosidy f ('Context 'Many 'Inline)
-          -- ^ A list of inline elements (plain text, inline tags,
-          -- soft breaks).
-      ->
-        Prosidy f ('Context 'One 'Block)
-          -- ^ A block of text not wrapped in any special notation
-          -- is a paragraph.
+         Prosidy f ('Context 'Many 'Inline) -- ^ A list of inline elements (plain text, inline tags, soft breaks).
+      -> Prosidy f ('Context 'One 'Block) -- ^ A block of text not wrapped in any special notation is a paragraph.
 
     TagParagraph ::
-        String f
-          -- ^ Tag name
-      ->
-        Prosidy f ('Context 'One 'Meta)
-          -- ^ Tag attributes
-      ->
-        Prosidy f ('Context 'Many 'Inline)
-          -- ^ Tag body: a list of inlines
-      ->
-        Prosidy f ('Context 'One 'Block)
-          -- ^ A block of the following form:
+         String f -- ^ Tag name
+      -> Prosidy f ('Context 'One 'Meta) -- ^ Tag attributes
+      -> Prosidy f ('Context 'Many 'Inline) -- ^ Tag body: a list of inlines
+      -> Prosidy f ('Context 'One 'Block) -- ^ A block of the following form:
           --
           -- @
           -- #-tagname[attrs]{inlines}
           -- @
 
     TagBlock ::
-        String f
-          -- ^ Tag name
-      ->
-        Prosidy f ('Context 'One 'Meta)
-          -- ^ Tag attributes
-      ->
-        Prosidy f ('Context 'Many 'Block)
-          -- ^ Tag body: a list of blocks
-      ->
-        Prosidy f ('Context 'One 'Block)
-          -- ^ A block of the following form:
+         String f -- ^ Tag name
+      -> Prosidy f ('Context 'One 'Meta) -- ^ Tag attributes
+      -> Prosidy f ('Context 'Many 'Block) -- ^ Tag body: a list of blocks
+      -> Prosidy f ('Context 'One 'Block) -- ^ A block of the following form:
           --
           -- @
           -- #-tagname[attrs]:end
@@ -205,17 +140,10 @@ data Prosidy (f :: Foundation) (context :: Context) where
           -- @
 
     TagLiteral ::
-        String f
-          -- ^ Tag name
-      ->
-        Prosidy f ('Context 'One 'Meta)
-          -- ^ Tag attributes
-      ->
-        String f
-          -- ^ Tag body: a literal string
-      ->
-        Prosidy f ('Context 'One 'Block)
-          -- ^ A block of the following form:
+         String f -- ^ Tag name
+      -> Prosidy f ('Context 'One 'Meta) -- ^ Tag attributes
+      -> String f -- ^ Tag body: a literal string
+      -> Prosidy f ('Context 'One 'Block) -- ^ A block of the following form:
           --
           -- @
           -- #=tagname[attrs]:end
@@ -224,111 +152,68 @@ data Prosidy (f :: Foundation) (context :: Context) where
           -- @
 
     TagInline ::
-        String f
-          -- ^ Tag name
-      ->
-        Prosidy f ('Context 'One 'Meta)
-          -- ^ Tag attributes
-      ->
-        Prosidy f ('Context 'Many 'Inline)
-          -- ^ Tag body: a list of inline elements
-      ->
-        Prosidy f ('Context 'One 'Inline)
-          -- ^ A tag within a paragraph, of the following form:
+         String f -- ^ Tag name
+      -> Prosidy f ('Context 'One 'Meta) -- ^ Tag attributes
+      -> Prosidy f ('Context 'Many 'Inline) -- ^ Tag body: a list of inline elements
+      -> Prosidy f ('Context 'One 'Inline) -- ^ A tag within a paragraph, of the following form:
           --
           -- @
           -- #tagname[attrs]{inlines}
           -- @
 
     StringInline ::
-        String f
-          -- ^ Plain text
-      ->
-        Prosidy f ('Context 'One 'Inline)
-          -- ^ A plain text inline element
+         String f -- ^ Plain text
+      -> Prosidy f ('Context 'One 'Inline) -- ^ A plain text inline element
 
-    SoftBreak ::
-        Prosidy f ('Context 'One 'Inline)
-          -- ^ A line break within a paragraph. When a Prosidy document is
-          -- rendered into another format, typically soft breaks are either
-          -- replaced with a space character (or, in a CJK writing system,
-          -- are simply removed).
+    SoftBreak :: Prosidy f ('Context 'One 'Inline) -- ^ A line break within a paragraph. When a Prosidy document is rendered into another format, typically soft breaks are either replaced with a space character (or, in a CJK writing system, are simply removed).
 
     Attrs ::
-        Dict f ()
-          -- ^ Flags
-      ->
-        Dict f (String f)
-          -- ^ Fields
-      ->
-        Prosidy f ('Context 'One 'Meta)
+         Dict f () -- ^ Flags
+      -> Dict f (String f) -- ^ Fields
+      -> Prosidy f ('Context 'One 'Meta)
 
 
 ---  Context  ---
 
-{- | The context of a 'Prosidy' indicates what kind of place it is allowed to
-appear within the syntax tree.
-
-The DataKinds GHC extension lifts the 'Context' type to a kind and the
-'Context' data type constructor to a type constructor. -}
+-- | The context of a 'Prosidy' indicates what kind of place it is allowed to appear within the syntax tree.
+--
+-- The DataKinds GHC extension lifts the 'Context' type to a kind and the 'Context' data type constructor to a type constructor.
 
 data Context = Context Size Level
 
 
 ---  Level  ---
 
-{- | The level of a 'Prosidy' indicates what kind of elements it may be
-nested within.
-
-The DataKinds GHC extension lifts 'Level' to a kind and its constructors
-'Root', 'Block' and 'Inline' to types of the 'Level' kind. -}
+-- | The level of a 'Prosidy' indicates what kind of elements it may be nested within.
+--
+-- The DataKinds GHC extension lifts 'Level' to a kind and its constructors 'Root', 'Block' and 'Inline' to types of the 'Level' kind.
 
 data Level
   where
 
-    -- | The top level containins everything else.
-    -- Only a 'Document' appears at the 'Root' level.
+    -- | The top level containins everything else. Only a 'Document' appears at the 'Root' level.
     Root :: Level
 
-    -- | The document body is at the block level. A block is either
-    -- a 'Paragraph' (text not wrapped in any special notation) or
-    -- a tag ('TagParagraph', 'TagBlock', or 'TagLiteral') beginning
-    -- with (@#-@) or (@#=@).
-    --
-    -- Blocks have a recursive structure; the body of a 'TagBlock'
-    -- element is block-level, permitting a tree of blocks.
+    -- | The document body is at the block level. A block is either a 'Paragraph' (text not wrapped in any special notation) or a tag ('TagParagraph', 'TagBlock', or 'TagLiteral') beginning with (@#-@) or (@#=@). Blocks have a recursive structure; the body of a 'TagBlock' element is block-level, permitting a tree of blocks.
     Block :: Level
 
-    -- | The body of a 'Paragraph' or 'TagParagraph' block is at the
-    -- inline level. The types of inlines are 'String', 'SoftBreak',
-    -- and 'TagInline'.
-    --
-    -- Inlines have a recursive structure; the body of a 'TagInline'
-    -- element has an inline level, permitting a tree of inlines.
+    -- | The body of a 'Paragraph' or 'TagParagraph' block is at the inline level. The types of inlines are 'String', 'SoftBreak', and 'TagInline'. Inlines have a recursive structure; the body of a 'TagInline' element has an inline level, permitting a tree of inlines.
     Inline :: Level
 
-    -- | The meta level consists of the document header and all
-    -- content within @[@...@]@ brackets. 'Attrs' is the only
-    -- type of content at the meta level.
+    -- | The meta level consists of the document header and all content within @[@...@]@ brackets. 'Attrs' is the only type of content at the meta level.
     Meta :: Level
 
 
 ---  Size  ---
 
-{- | When a Prosidy element that has a body (other Prosidy content
-within the element), that body consists of a list of elements.
-The size of a 'Prosidy' indicates whether the 'Prosidy' represents
-a list of elements or a single element within such a list.
-
-The DataKinds GHC extension lifts 'Size' to a kind and its
-constructors 'One' and 'Many' to types of the 'Size' kind. -}
+-- | When a Prosidy element that has a body (other Prosidy content within the element), that body consists of a list of elements. The size of a 'Prosidy' indicates whether the 'Prosidy' represents a list of elements or a single element within such a list.
+--
+-- The DataKinds GHC extension lifts 'Size' to a kind and its constructors 'One' and 'Many' to types of the 'Size' kind.
 
 data Size
   where
 
-    -- | Indicates that a 'Prosidy' value represents a
-    -- single inline or block element. This is the size
-    -- of most 'Prosidy' constructors.
+    -- | Indicates that a 'Prosidy' value represents a single inline or block element. This is the size of most 'Prosidy' constructors.
     One :: Size
 
     -- | Only the 'List' constructor has an size of 'Many'.
@@ -360,33 +245,13 @@ idWalk = MonadicTraversal $ \s action -> action s
 
 ---  Various basic AST manipulations  ---
 
-documentHeadLens ::
-    Simple Lens
-        (Prosidy f ('Context 'One 'Root))
-        (Prosidy f ('Context 'One 'Meta))
+documentHeadLens :: Simple Lens (Prosidy f ('Context 'One 'Root)) (Prosidy f ('Context 'One 'Meta))
+documentHeadLens = Lens (\(Document head body) -> Separation head (\head' -> Document head' body))
 
-documentHeadLens =
-    Lens
-        (\(Document head body) ->
-            Separation head (\head' -> Document head' body)
-        )
+documentBodyLens :: Simple Lens (Prosidy f ('Context 'One 'Root)) (Prosidy f ('Context 'Many 'Block))
+documentBodyLens = Lens (\(Document head body) -> Separation body (\body' -> Document head body'))
 
-documentBodyLens ::
-    Simple Lens
-        (Prosidy f ('Context 'One 'Root))
-        (Prosidy f ('Context 'Many 'Block))
-
-documentBodyLens =
-    Lens
-        (\(Document head body) ->
-            Separation body (\body' -> Document head body')
-        )
-
-prosidyListIso ::
-    Simple Iso
-        (Prosidy f ('Context 'Many l))
-        (List f (Prosidy f ('Context 'One l)))
-
+prosidyListIso :: Simple Iso (Prosidy f ('Context 'Many l)) (List f (Prosidy f ('Context 'One l)))
 prosidyListIso = Iso (\(List x) -> x) List
 
 
@@ -399,17 +264,14 @@ data BlockDirection = TopToBottom | BottomToTop
 data InlineDirection = LeftToRight | RightToLeft
 
 prosidyListWalk :: ListWalk (List f) =>
-    ListDirection
-    ->
-    Simple MonadicTraversal (Prosidy f ('Context 'Many l))
-                            (Prosidy f ('Context 'One l))
+     ListDirection
+  -> Simple MonadicTraversal (Prosidy f ('Context 'Many l))
+                             (Prosidy f ('Context 'One l))
 
-prosidyListWalk direction =
-    prosidyListIso `opticCompose` listWalk direction
+prosidyListWalk direction = prosidyListIso `opticCompose` listWalk direction
 
-blockChildrenWalk ::
-    Simple MonadicTraversal (Prosidy f ('Context 'One 'Block))
-                           (Prosidy f ('Context 'Many 'Block))
+blockChildrenWalk :: Simple MonadicTraversal (Prosidy f ('Context 'One 'Block))
+                                             (Prosidy f ('Context 'Many 'Block))
 
 blockChildrenWalk = MonadicTraversal $ \block action ->
     case block of
@@ -418,10 +280,9 @@ blockChildrenWalk = MonadicTraversal $ \block action ->
         _ -> pure block
 
 eachBlockChild :: ListWalk (List f) =>
-    BlockDirection
-    ->
-    Simple MonadicTraversal (Prosidy f ('Context 'One 'Block))
-                            (Prosidy f ('Context 'One 'Block))
+     BlockDirection
+  -> Simple MonadicTraversal (Prosidy f ('Context 'One 'Block))
+                             (Prosidy f ('Context 'One 'Block))
 
 eachBlockChild blockDirection =
     blockChildrenWalk `opticCompose`
@@ -438,12 +299,10 @@ blockListDirectionIso =
 class BlockWalk size level
   where
     blockWalk :: ListWalk (List f) =>
-        TreeDirection
-        ->
-        BlockDirection
-        ->
-        Simple MonadicTraversal (Prosidy f ('Context size level))
-                                (Prosidy f ('Context 'One 'Block))
+         TreeDirection
+      -> BlockDirection
+      -> Simple MonadicTraversal (Prosidy f ('Context size level))
+                                 (Prosidy f ('Context 'One 'Block))
 
 instance BlockWalk 'One 'Root
   where
@@ -527,16 +386,13 @@ prosidyJS =
 
 ---  Random generation  ---
 
-genDocument :: (context ~ ('Context 'One 'Root)) =>
-    GenOptions context -> Gen entropy (Prosidy f context)
+genDocument :: (context ~ ('Context 'One 'Root)) => GenOptions context -> Gen entropy (Prosidy f context)
 genDocument _ = _
 
-genBlock :: (context ~ ('Context 'One 'Block)) =>
-    GenOptions context -> Gen entropy (Prosidy f context)
+genBlock :: (context ~ ('Context 'One 'Block)) => GenOptions context -> Gen entropy (Prosidy f context)
 genBlock _ = _
 
-genInline :: (context ~ ('Context 'One 'Inline)) =>
-    GenOptions context -> Gen entropy (Prosidy f context)
+genInline :: (context ~ ('Context 'One 'Inline)) => GenOptions context -> Gen entropy (Prosidy f context)
 genInline _ = _
 
 type GenOptions context = forall a. GenOption context a -> a
@@ -544,13 +400,11 @@ type GenOptions context = forall a. GenOption context a -> a
 data GenOption (context :: Context) a
   where
 
+    -- | The maximum number of blocks within a document, including blocks that are nested within other blocks.
     GenMaxTotalBlocks :: GenOption ('Context 'One 'Root) Natural
-      -- ^ The maximum number of blocks within a document, including
-      -- blocks that are nested within other blocks.
 
+    -- | The maximum depth of a block. A top-level block has depth 1; a block within a 'TagBlock' of depth /n/ has depth /n+1/.
     GenMaxBlockDepth :: GenOption ('Context 'One 'Root) Natural
-      -- ^ The maximum depth of a block. A top-level block has depth 1;
-      -- a block within a 'TagBlock' of depth *n* has depth *n+1*.
 
 genDefault :: GenOption context a -> a
 genDefault =

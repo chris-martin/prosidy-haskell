@@ -1,5 +1,5 @@
 {-# OPTIONS_GHC -Wall #-}
-    {- All GHC warnings are enabled. -}
+-- All GHC warnings are enabled.
 
 {-# LANGUAGE NoImplicitPrelude #-}
 
@@ -8,19 +8,20 @@
 {-# LANGUAGE StandaloneDeriving #-}
 
 {-# LANGUAGE KindSignatures #-}
-    {- We use the kind signatures extension to annotate type
-       parameters with their kind using (::). This is just like
-       a type annotation, but what follows the colons is a kind
-       rather than a type. -}
+-- We use the kind signatures extension to annotate type parameters with their kind using (::). This is just like a type annotation, but what follows the colons is a kind rather than a type.
 
 {-# LANGUAGE DataKinds #-}
 
 {-# LANGUAGE FlexibleInstances, QuantifiedConstraints #-}
 
-module Prosidy.JsonConcepts
-  (
-    {- * JSON AST -}  JS ( JsString, JsList, JsDict ),
-    {- * Keys -}      JsKey ( .. ), JsKeyString ( .. )
+module Prosidy.JsonConcepts (
+
+    -- * JSON AST
+    JS (JsString, JsList, JsDict),
+
+    -- * Keys
+    JsKey (..), JsKeyString (..)
+
   ) where
 
 import Prosidy.Foundation
@@ -34,9 +35,7 @@ import Data.Eq (Eq)
 -- Things related to type-level programming
 import Data.Kind (Type)
 
-{- | A fairly generic data structure that resembles an abstract syntax
-tree for JSON, minus a few aspects of JSON that are irrelevant for our
-purposes here. -}
+-- | A fairly generic data structure that resembles an abstract syntax tree for JSON, minus a few aspects of JSON that are irrelevant for our purposes here.
 
 data JS (f :: Foundation) =
     JsString (String f)     -- ^ e.g. @"hello"@

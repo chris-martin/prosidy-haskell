@@ -1,52 +1,48 @@
 {-# OPTIONS_GHC -Wall #-}
-    {- All GHC warnings are enabled. -}
+-- All GHC warnings are enabled.
 
 {-# OPTIONS_GHC -Werror #-}
-    {- This module may not emit any warnings. -}
+-- This module may not emit any warnings.
 
 {-# LANGUAGE KindSignatures #-}
-    {- We use the kind signatures extension to annotate type
-       parameters with their kind using (::). This is just like
-       a type annotation, but what follows the colons is a kind
-       rather than a type. -}
+-- We use the kind signatures extension to annotate type parameters with their kind using (::). This is just like a type annotation, but what follows the colons is a kind rather than a type.
 
 {-# LANGUAGE NoImplicitPrelude #-}
-    {- This module has extremely little external dependency,
-       not even from Prelude. -}
+-- This module has extremely little external dependency, not even from Prelude.
 
 {-# LANGUAGE FunctionalDependencies #-}
-    {- The 'OpticCompose' class has a functional dependency. -}
+-- The 'OpticCompose' class has a functional dependency.
 
 {-# LANGUAGE ScopedTypeVariables #-}
 
 {-# LANGUAGE RankNTypes #-}
 
-module Prosidy.OpticsConcepts
-  (
-    {- * Optic -}           Optic,
+module Prosidy.OpticsConcepts (
 
-    {- * Try -}             Try ( .. ), recover, no, ok, overTry,
+    -- * Optic
+    Optic,
 
-    {- * Separation -}      Separation ( .. ), part, reassemble,
-                            afterReassemble, beforeReassemble,
+    -- * Try
+    Try (..), recover, no, ok, overTry,
 
-    {- * Try separation -}  TrySeparation,
+    -- * Separation
+    Separation (..), part, reassemble, afterReassemble, beforeReassemble,
 
-    {- * Operations -}      Forward    ( forward ),
-                            ForwardTry ( forwardTry ),
-                            Backward   ( backward ),
-                            Over       ( over ),
+    -- * Try separation
+    TrySeparation,
 
-    {- * Optic types -}     Iso                  ( Iso ),
-                            Lens                 ( Lens ),
-                            Prism                ( Prism ),
-                            AffineTraversal      ( AffineTraversal ),
-                            ApplicativeTraversal ( ApplicativeTraversal ),
-                            MonadicTraversal     ( MonadicTraversal ),
+    -- * Operations
+    Forward (forward), ForwardTry (forwardTry), Backward (backward), Over (over),
 
-    {- * Composition -}     OpticCompose ( .. ),
+    -- * Optic types
+    Iso (Iso), Lens (Lens), Prism (Prism), AffineTraversal (AffineTraversal), ApplicativeTraversal (ApplicativeTraversal), MonadicTraversal (MonadicTraversal),
 
-    {- * Simple -}          Simple
+    -- * Composition
+    OpticCompose (..),
+
+    -- * Simple
+    Simple
+
   ) where
 
 -- Functors
@@ -101,9 +97,7 @@ no = Prism abTry No
 data Separation a' b b' =
     Separation
         b          -- ^ The part of the original object targeted by the lens.
-        (b' -> a') -- ^ The remainder of the original object, represented as
-                   --   a function that constructs a new version of the original
-                   --   object with the lens-targeted part replaced by a new value.
+        (b' -> a') -- ^ The remainder of the original object, represented as a function that constructs a new version of the original object with the lens-targeted part replaced by a new value.
 
 part :: Separation a b b' -> b
 part (Separation b _) = b
