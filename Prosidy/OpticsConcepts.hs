@@ -20,7 +20,7 @@
 module Prosidy.OpticsConcepts (
 
     -- * Optic
-    Optic,
+    Optic (trivial),
 
     -- * Try
     Try (..), recover, no, ok, overTry,
@@ -44,6 +44,8 @@ module Prosidy.OpticsConcepts (
     Simple
 
   ) where
+
+import Data.Function (id)
 
 -- Functors
 import Data.Functor (fmap)
@@ -123,6 +125,8 @@ type TrySeparation a' b b' = Try a' (Separation a' b b')
 -- >  ╰──────────╯
 
 class Optic (o :: * -> * -> * -> * -> *)
+  where
+    trivial :: Simple o a a
 
 -- |
 -- >                    ╭──────────╮   ╭──────────╮   ╭──────────╮
@@ -139,28 +143,40 @@ class (Optic x, Optic y, Optic z) => OpticCompose x y z | x y -> z
 data Iso a a' b b' = Iso (a -> b) (b' -> a')
 
 instance Optic Iso
+  where
+    trivial = Iso id id
 
 data Lens a a' b b' = Lens (a -> Separation a' b b')
 
 instance Optic Lens
+  where
+    trivial = Lens (\a -> Separation a (\_b -> a))
 
 data Prism a a' b b' = Prism (a -> Try a' b) (b' -> a')
 
 instance Optic Prism
+  where
+    trivial = Prism Ok id
 
 data AffineTraversal a a' b b' = AffineTraversal (a -> TrySeparation a' b b')
 
 instance Optic AffineTraversal
+  where
+    trivial = AffineTraversal (\a -> Ok (Separation a (\_b -> a)))
 
 type Simple o a b = o a a b b
 
 data ApplicativeTraversal a a' b b' = ApplicativeTraversal (a -> forall f. (Applicative f) => (b -> f b') -> f a')
 
 instance Optic ApplicativeTraversal
+  where
+    trivial = ApplicativeTraversal (\a f -> f a)
 
 data MonadicTraversal a a' b b' = MonadicTraversal (a -> forall f. (Monad f) => (b -> f b') -> f a')
 
 instance Optic MonadicTraversal
+  where
+    trivial = MonadicTraversal (\a f -> f a)
 
 instance OpticCompose Iso Iso Iso
   where
