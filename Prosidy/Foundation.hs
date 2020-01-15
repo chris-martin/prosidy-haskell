@@ -19,7 +19,7 @@ module Prosidy.Foundation (
     String,
 
     -- * List
-    List, ListBuilding (listSingleton, listConcat),
+    List, ListBuilding (listSingleton, listConcat), ListWalk (..), ListDirection (..),
 
     -- * Dict
     Dict, DictBuilding (dictSingleton, dictConcat),
@@ -31,6 +31,10 @@ module Prosidy.Foundation (
     BaseFoundation, AssociationList (AssociationList)
 
   ) where
+
+import Prosidy.OpticsConcepts
+
+import qualified Data.Traversable as Traversable
 
 -- List
 import qualified Data.List as List
@@ -114,3 +118,14 @@ instance (ListBuilding list) => DictBuilding k (AssociationList list k)
   where
     dictSingleton k v = AssociationList (listSingleton (k, v))
     dictConcat (AssociationList a) (AssociationList b) = AssociationList (listConcat a b)
+
+data ListDirection = ListForward | ListBackward
+
+class ListWalk list
+  where
+    listWalk :: ListDirection -> MonadicTraversal (list a) (list b) a b
+
+instance ListWalk []
+  where
+    listWalk ListForward = MonadicTraversal Traversable.for
+    listWalk ListBackward = MonadicTraversal (\xs action -> Traversable.for (List.reverse xs) action)

@@ -219,17 +219,6 @@ data Size
     -- | Only the 'Prosidy.AbstractSyntax.List' constructor has an size of 'Many'.
     Many :: Size
 
-data ListDirection = ListForward | ListBackward
-
-class ListWalk list
-  where
-    listWalk :: ListDirection -> MonadicTraversal (list a) (list b) a b
-
-instance ListWalk []
-  where
-    listWalk ListForward = MonadicTraversal Traversable.for
-    listWalk ListBackward = MonadicTraversal (\xs action -> Traversable.for (List.reverse xs) action)
-
 
 ---  Walk concept  ---
 
