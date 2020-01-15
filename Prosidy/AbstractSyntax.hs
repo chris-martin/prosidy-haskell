@@ -216,7 +216,7 @@ data Size
     -- | Indicates that a 'Prosidy' value represents a single inline or block element. This is the size of most 'Prosidy' constructors.
     One :: Size
 
-    -- | Only the 'List' constructor has an size of 'Many'.
+    -- | Only the 'Prosidy.AbstractSyntax.List' constructor has an size of 'Many'.
     Many :: Size
 
 data ListDirection = ListForward | ListBackward
