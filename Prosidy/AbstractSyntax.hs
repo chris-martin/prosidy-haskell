@@ -252,12 +252,12 @@ data BlockDirection = TopToBottom | BottomToTop
 
 data InlineDirection = LeftToRight | RightToLeft
 
-prosidyListWalk :: ListWalk (List f) =>
+prosidyListWalk :: ListTraversal (List f) =>
      ListDirection
-  -> Simple MonadicTraversal (Prosidy f ('Context 'Many l))
-                             (Prosidy f ('Context 'One l))
+  -> Simple ApplicativeTraversal (Prosidy f ('Context 'Many l))
+                                 (Prosidy f ('Context 'One l))
 
-prosidyListWalk direction = prosidyListIso `opticCompose` listWalk direction
+prosidyListWalk direction = prosidyListIso `opticCompose` listTraversal direction
 
 blockChildrenWalk :: Simple MonadicTraversal (Prosidy f ('Context 'One 'Block))
                                              (Prosidy f ('Context 'Many 'Block))
@@ -268,7 +268,7 @@ blockChildrenWalk = MonadicTraversal $ \block action ->
             TagBlock name attrs `fmap` action children
         _ -> pure block
 
-eachBlockChild :: ListWalk (List f) =>
+eachBlockChild :: ListTraversal (List f) =>
      BlockDirection
   -> Simple MonadicTraversal (Prosidy f ('Context 'One 'Block))
                              (Prosidy f ('Context 'One 'Block))
@@ -287,7 +287,7 @@ blockListDirectionIso =
 
 class BlockWalk size level
   where
-    blockWalk :: ListWalk (List f) =>
+    blockWalk :: ListTraversal (List f) =>
          TreeDirection
       -> BlockDirection
       -> Simple MonadicTraversal (Prosidy f ('Context size level))
